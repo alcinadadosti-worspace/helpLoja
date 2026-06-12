@@ -1,0 +1,12 @@
+# Deploy no Render como static site (Blueprint)
+# O build copia apenas a app para public/ — o CONTEXTO_RADAR_LOJAS.md não é publicado no site.
+services:
+  - type: web
+    name: radar-lojas
+    runtime: static
+    buildCommand: mkdir -p public && cp radar-lojas.html public/index.html
+    staticPublishPath: public
+    headers:
+      - path: /*
+        name: X-Robots-Tag
+        value: noindex, nofollow

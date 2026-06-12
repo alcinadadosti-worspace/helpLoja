@@ -133,3 +133,9 @@ Bugs encontrados rodando os arquivos reais da rede e corrigidos no `radar-lojas.
 **Validação re-executada (critério permanente mantido):** 7/7 PDFs reais com selo ✓ (somas do rodapé ao centavo; 5905 com nota de contagem), CSV real com 7 lojas e valores exatos, referência da 24303 intacta (169 dias, descEtiq 26,10%, margem 62,2%, curva A=220), pipeline completo com 7 lojas sem erro.
 
 **⚠ Pendência de dados — loja 5905:** o PDF (fat R$ 420,7k no período, header ACQUA) **não bate** com a linha 5905 do CSV (GMV R$ 201,6k, razão ALAN MARTINS TAVARES E CIA LTDA) — ~2x de diferença na mesma janela. Provável código repetido entre bases/lojas distintas. O chip de alerta da correção 5 sinaliza isso na UI; falta o usuário confirmar qual fonte é a loja certa.
+
+## 10. Deploy (Render, static site)
+
+- `render.yaml` na raiz (Blueprint): o build copia `radar-lojas.html` → `public/index.html` e publica só a pasta `public/` — este MD e quaisquer dados não vão para o site. Header `X-Robots-Tag: noindex` para não indexar em buscadores.
+- Repositório: https://github.com/alcinadadosti-worspace/helpLoja.git (os relatórios *.pdf/*.csv ficam fora por `.gitignore`).
+- **Atenção privacidade:** a app embute o SEED com os dados reais da loja 24303; a URL do Render é pública para quem a tiver. O processamento de arquivos continua 100% client-side (nada é enviado a servidor).

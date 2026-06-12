@@ -4,3 +4,6 @@
 *.xlsx
 *.xls
 .~lock.*
+
+# Saída de build do deploy (gerada no Render)
+public/
