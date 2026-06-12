@@ -550,7 +550,7 @@ function gerarEstrategias(lojas, canal){
   const out = [];
   const R = CONFIG.regua;
   for (const l of lojas){
-    const nm = nomeLoja(l);
+    const nm = esc(nomeLoja(l)); // o nome é editável pelo usuário e os diags são interpolados como HTML
     /* 1 · Disciplina de desconto */
     if (l.descEtiqPct != null && l.etiquetaMes){
       const mediaCanal = canal.n > 1 ? canal.descEtiqPct : null;
@@ -763,25 +763,26 @@ function donutSVG(parts){
 
 /* ---------- Ingestão ---------- */
 async function handleFiles(list){
+  const addFile = f => { const i = state.files.findIndex(x => x.name === f.name); if (i >= 0) state.files[i] = f; else state.files.push(f); }; // re-upload substitui o chip
   for (const f of [...list]){
     const name = f.name;
     try {
       if (/\.pdf$/i.test(name)){
         const parsed = await parseABC(await f.arrayBuffer());
-        if (!parsed.meta.codigo || !parsed.items.length) { state.files.push({name, st:'bad', info:'não reconhecido como ABC RetaguardaGB'}); continue; }
+        if (!parsed.meta.codigo || !parsed.items.length) { addFile({name, st:'bad', info:'não reconhecido como ABC RetaguardaGB'}); continue; }
         const val = validarABC(parsed);
         const s = getStore(parsed.meta.codigo);
         s.pdfMeta = parsed.meta;
         s.abc = analisarABC(parsed);
-        state.files.push({ name, st: val.ok?'ok':'warn', info: `loja ${parsed.meta.codigo} · ` + (val.ok ? 'rodapé conferido' + (val.notas.length ? ' · ' + val.notas.join(' · ') : '') : val.difs.join(' · ')) });
+        addFile({ name, st: val.ok?'ok':'warn', info: `loja ${parsed.meta.codigo} · ` + (val.ok ? 'rodapé conferido' + (val.notas.length ? ' · ' + val.notas.join(' · ') : '') : val.difs.join(' · ')) });
       } else if (/\.(xlsx|xls|csv)$/i.test(name)){
         const buf = await f.arrayBuffer();
         const rows = /\.csv$/i.test(name) ? parseIndicadores(decodeTexto(buf), true) : parseIndicadores(new Uint8Array(buf));
-        if (!rows.length){ state.files.push({name, st:'bad', info:'nenhuma linha de loja encontrada'}); continue; }
+        if (!rows.length){ addFile({name, st:'bad', info:'nenhuma linha de loja encontrada'}); continue; }
         rows.forEach(r => { getStore(r.codigo).ind = r; });
-        state.files.push({ name, st:'ok', info:`indicadores de ${rows.length} loja(s): ${rows.map(r=>r.codigo).join(', ')}` });
-      } else state.files.push({ name, st:'bad', info:'formato não suportado' });
-    } catch(e){ console.error(e); state.files.push({ name, st:'bad', info:'erro ao ler: '+e.message }); }
+        addFile({ name, st:'ok', info:`indicadores de ${rows.length} loja(s): ${rows.map(r=>r.codigo).join(', ')}` });
+      } else addFile({ name, st:'bad', info:'formato não suportado' });
+    } catch(e){ console.error(e); addFile({ name, st:'bad', info:'erro ao ler: '+e.message }); }
   }
   renderAll();
 }

@@ -130,6 +130,10 @@ Bugs encontrados rodando os arquivos reais da rede e corrigidos no `radar-lojas.
 5. **Cross-check novo**: chip de alerta quando `fatPDF` destoa >15% da `receitaLiq` dos indicadores da mesma loja.
 6. Donut do mix agora começa no topo (offset inicial estava se cancelando — cosmético).
 7. **Razão social contaminava nomes de produto**: o cabeçalho de página repete a razão social e ela não era descartada — virava `nomePre` e era prepended ao nome do 1º item de cada página (≈1 SKU por página com marca/categoria errada; as somas batiam, então o selo não acusava). Fix: `parseABC` pula linhas iguais a `meta.razao`.
+8. **Nome de loja sem escape nos diags**: o campo de renomear (aba Lojas) entrava sem `esc()` nos diagnósticos das estratégias, que são interpolados como HTML — um nome com `<` injetava markup. Fix: `esc(nomeLoja(l))` no motor.
+9. **Chips de arquivo duplicavam**: re-arrastar o mesmo arquivo acumulava chips contraditórios. Fix: `addFile` substitui o chip pelo nome do arquivo.
+
+**Validação de UI (12/06/2026):** render completo em jsdom com o seed das 7 lojas — 24 checks: boot sem erro, 8 pills, ranking 7 linhas, 7 cards, troca de abas, expandir detalhe, renomear com HTML malicioso (escapado), filtro de estratégias, 3 sliders recalculando, zero erros de JS após todas as interações.
 
 **Validação re-executada (critério permanente mantido):** 7/7 PDFs reais com selo ✓ (somas do rodapé ao centavo; 5905 com nota de contagem), CSV real com 7 lojas e valores exatos, referência da 24303 intacta (169 dias, descEtiq 26,10%, margem 62,2%, curva A=220), pipeline completo com 7 lojas sem erro.
 
