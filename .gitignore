@@ -1,0 +1,6 @@
+# Dados comerciais reais (relatórios do ERP) — não versionar
+*.pdf
+*.csv
+*.xlsx
+*.xls
+.~lock.*

@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Radar Lojas · Grupo Alcina Maria</title>
+<style>
+:root{
+  --bg:#0C1612; --bg2:#0F1B16; --surf:#142420; --surf2:#182B23; --surf3:#1D332A;
+  --line:#23423450; --line2:#2E523F66;
+  --tx:#EAF4ED; --tx2:#9DB7A8; --tx3:#6E8A7B;
+  --verde:#34C77B; --verde2:#2BB673; --ouro:#D9B25F; --ouro2:#E8CD8F;
+  --ambar:#E8B84B; --verm:#E16358; --azul:#5BA8D9;
+  --r:14px; --r2:10px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-size:14px;line-height:1.45;min-height:100vh;
+background-image:radial-gradient(1100px 500px at 85% -10%, #16352640 0%, transparent 60%),radial-gradient(900px 420px at -10% 0%, #1A2E1F33 0%, transparent 55%)}
+button{font-family:inherit;cursor:pointer}
+input,select{font-family:inherit}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+/* ====== HEADER ====== */
+.app-header{padding:22px clamp(16px,4vw,40px) 14px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between;border-bottom:1px solid var(--line)}
+.brand h1{font-size:clamp(20px,3vw,27px);font-weight:800;letter-spacing:-.02em}
+.brand h1 .dot{color:var(--verde)}
+.brand .sub{color:var(--tx2);font-size:12.5px;margin-top:2px}
+.brand .sub b{color:var(--ouro);font-weight:600}
+.head-chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chip{background:var(--surf);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:12px;color:var(--tx2);display:inline-flex;gap:6px;align-items:center}
+.chip b{color:var(--tx);font-weight:600}
+.chip.warn{border-color:#E8B84B55;color:var(--ambar)}
+
+/* ====== DROPZONE ====== */
+.ingest{padding:14px clamp(16px,4vw,40px)}
+.dropzone{border:1.5px dashed var(--line2);border-radius:var(--r);background:linear-gradient(180deg,#14242066,#101D1866);padding:16px 18px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;transition:border-color .15s,background .15s}
+.dropzone.drag{border-color:var(--verde);background:#16352866}
+.dz-left{display:flex;gap:12px;align-items:center;min-width:240px}
+.dz-icon{width:38px;height:38px;border-radius:10px;background:#1B3A2C;display:grid;place-items:center;color:var(--verde);font-size:17px;flex:none}
+.dz-left h2{font-size:14px;font-weight:700}
+.dz-left p{font-size:12px;color:var(--tx2)}
+.btn{background:var(--verde2);color:#06150D;border:none;border-radius:10px;padding:9px 16px;font-weight:700;font-size:13px;transition:filter .12s}
+.btn:hover{filter:brightness(1.1)}
+.btn:focus-visible,.tab:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--verde);outline-offset:2px}
+.btn.ghost{background:transparent;color:var(--tx2);border:1px solid var(--line2)}
+.btn.ghost:hover{color:var(--tx);border-color:var(--verde)}
+.filechips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.fchip{background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:6px 11px;font-size:12px;display:inline-flex;gap:8px;align-items:center}
+.fchip .ok{color:var(--verde);font-weight:700}
+.fchip .bad{color:var(--ambar);font-weight:700}
+.fchip .meta{color:var(--tx3)}
+.seal{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--ouro);border:1px solid #D9B25F44;background:#D9B25F12;border-radius:999px;padding:2.5px 9px}
+
+/* ====== TABS ====== */
+.tabs{display:flex;gap:4px;padding:0 clamp(16px,4vw,40px);border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{background:none;border:none;color:var(--tx2);font-size:13.5px;font-weight:600;padding:12px 14px;border-bottom:2px solid transparent;white-space:nowrap}
+.tab:hover{color:var(--tx)}
+.tab.on{color:var(--verde);border-bottom-color:var(--verde)}
+.view{display:none;padding:22px clamp(16px,4vw,40px) 60px;max-width:1280px;margin:0 auto}
+.view.on{display:block}
+.empty{border:1px dashed var(--line2);border-radius:var(--r);padding:34px;text-align:center;color:var(--tx2);font-size:13.5px;line-height:1.7}
+.empty b{color:var(--tx)}
+
+/* ====== KPI PILLS ====== */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px}
+.pill{background:var(--surf);border:1px solid var(--line);border-radius:var(--r2);padding:12px 14px}
+.pill .lb{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);font-weight:700}
+.pill .v{font-size:21px;font-weight:800;letter-spacing:-.02em;margin-top:3px}
+.pill .v small{font-size:12px;color:var(--tx2);font-weight:600}
+.pill .hint{font-size:11px;color:var(--tx3);margin-top:2px}
+.pill.gold .v{color:var(--ouro2)}
+.c-ok{color:var(--verde)!important}.c-warn{color:var(--ambar)!important}.c-bad{color:var(--verm)!important}
+
+/* ====== RÉGUA (assinatura) ====== */
+.regua{margin-top:7px}
+.regua .track{position:relative;height:5px;border-radius:99px;background:linear-gradient(90deg,#2BB673 0%,#7FBF63 38%,#E8B84B 64%,#E16358 100%);opacity:.9}
+.regua .pin{position:absolute;top:50%;width:11px;height:11px;border-radius:50%;background:var(--tx);border:2.5px solid var(--bg);transform:translate(-50%,-50%);box-shadow:0 0 0 1.5px #ffffff33}
+.regua .marks{display:flex;justify-content:space-between;font-size:9.5px;color:var(--tx3);margin-top:3px;letter-spacing:.03em}
+
+/* ====== SEÇÕES ====== */
+.sec-t{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ouro);font-weight:800;margin:26px 0 12px;display:flex;align-items:center;gap:10px}
+.sec-t::after{content:"";flex:1;height:1px;background:var(--line)}
+.note{font-size:12px;color:var(--tx3);line-height:1.6;margin-top:14px;max-width:860px}
+.note b{color:var(--tx2)}
+
+/* ====== TABELA RANKING ====== */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surf)}
+table.rank{border-collapse:collapse;width:100%;min-width:980px;font-size:12.5px}
+.rank th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);font-weight:700;text-align:right;padding:11px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.rank th:first-child,.rank td:first-child{text-align:left;position:sticky;left:0;background:var(--surf)}
+.rank td{padding:10px 12px;text-align:right;border-bottom:1px solid #1B312844;white-space:nowrap}
+.rank tr:last-child td{border-bottom:none}
+.rank td.loja{font-weight:700;color:var(--tx)}
+.rank td.loja small{display:block;color:var(--tx3);font-weight:500;font-size:10.5px}
+.rank tr:hover td{background:#1A2F2666}
+.rank tr:hover td:first-child{background:var(--surf3)}
+.heat{border-radius:6px;padding:2px 7px;display:inline-block;min-width:54px}
+
+/* ====== CARDS DE LOJA ====== */
+.stores{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(420px,100%),1fr));gap:14px}
+.scard{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.scard .head{padding:14px 16px;display:flex;gap:10px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#182B2366,transparent)}
+.scard .head input{background:transparent;border:none;border-bottom:1px dashed transparent;color:var(--tx);font-size:15.5px;font-weight:800;letter-spacing:-.01em;width:100%;padding:2px 0}
+.scard .head input:hover,.scard .head input:focus{border-bottom-color:var(--line2);outline:none}
+.scard .head .cod{font-size:11px;color:var(--tx3)}
+.scard .body{padding:14px 16px}
+.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
+.kg .lb{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);font-weight:700}
+.kg .v{font-size:16.5px;font-weight:800;margin-top:1px}
+.kg .v small{font-size:11px;color:var(--tx2);font-weight:600}
+.expand{width:100%;background:var(--surf2);border:none;border-top:1px solid var(--line);color:var(--tx2);font-size:12px;font-weight:700;padding:10px;letter-spacing:.05em}
+.expand:hover{color:var(--verde)}
+.detail{display:none;padding:16px;border-top:1px solid var(--line);background:var(--bg2)}
+.detail.on{display:block}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
+.mini-t{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);font-weight:800;margin-bottom:9px}
+.legend{font-size:11.5px;color:var(--tx2);display:flex;flex-direction:column;gap:4px}
+.legend .sw{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:7px}
+.legend .pc{color:var(--tx3)}
+.abc-bar{display:flex;height:14px;border-radius:99px;overflow:hidden;margin:6px 0 8px}
+.abc-bar div{height:100%}
+.tskus{width:100%;border-collapse:collapse;font-size:11.5px}
+.tskus td{padding:4.5px 6px;border-bottom:1px solid #1B312833;vertical-align:top}
+.tskus td:first-child{color:var(--tx2)}
+.tskus td:last-child,.tskus td:nth-child(2){text-align:right;white-space:nowrap}
+.brand-chips{display:flex;flex-wrap:wrap;gap:6px}
+.bchip{background:var(--surf3);border:1px solid var(--line);border-radius:8px;padding:4px 9px;font-size:11px;color:var(--tx2)}
+.bchip b{color:var(--tx)}
+.alert-li{font-size:12px;color:var(--tx2);line-height:1.65;padding-left:16px;position:relative}
+.alert-li::before{content:"›";position:absolute;left:2px;color:var(--ouro)}
+
+/* ====== ESTRATÉGIAS ====== */
+.strat-top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
+.potencial{background:linear-gradient(135deg,#1B3A2C,#15281F);border:1px solid #34C77B44;border-radius:var(--r);padding:14px 20px}
+.potencial .lb{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--tx2);font-weight:700}
+.potencial .v{font-size:26px;font-weight:800;color:var(--ouro2);letter-spacing:-.02em}
+.potencial .v small{font-size:13px;color:var(--tx2);font-weight:600}
+.sel{background:var(--surf);border:1px solid var(--line2);color:var(--tx);border-radius:10px;padding:8px 12px;font-size:13px}
+.strats{display:grid;gap:12px}
+.strat{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;border-left:3px solid var(--tx3)}
+.strat.critico{border-left-color:var(--verm)}
+.strat.atencao{border-left-color:var(--ambar)}
+.strat.oportunidade{border-left-color:var(--azul)}
+.strat .top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.strat h3{font-size:15.5px;font-weight:800;letter-spacing:-.01em}
+.badges{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.badge{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;border-radius:6px;padding:3px 8px}
+.badge.critico{background:#E1635822;color:var(--verm)}
+.badge.atencao{background:#E8B84B22;color:var(--ambar)}
+.badge.oportunidade{background:#5BA8D922;color:var(--azul)}
+.badge.loja{background:var(--surf3);color:var(--tx2)}
+.impact{font-size:17px;font-weight:800;color:var(--ouro2);white-space:nowrap}
+.impact small{font-size:11px;color:var(--tx2);font-weight:600}
+.strat .diag{font-size:13px;color:var(--tx2);margin-top:8px;line-height:1.6;max-width:900px}
+.strat .diag b{color:var(--tx)}
+.strat .meta-l{font-size:12.5px;margin-top:7px;color:var(--verde);font-weight:700}
+.acoes{margin-top:11px;display:grid;gap:6px}
+.acao{display:flex;gap:9px;font-size:12.5px;color:var(--tx2);line-height:1.5;align-items:flex-start}
+.acao input{margin-top:3px;accent-color:var(--verde)}
+.strat .fonte{font-size:10.5px;color:var(--tx3);margin-top:10px;font-style:italic}
+
+/* ====== SIMULADOR ====== */
+.sim-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr));gap:16px;align-items:start}
+.sim-card{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.slider-row{margin:16px 0}
+.slider-row .lr{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px}
+.slider-row .lr b{color:var(--tx)}
+.slider-row .lr .nv{color:var(--verde);font-weight:800}
+input[type=range]{width:100%;accent-color:var(--verde);height:4px}
+.proj{background:linear-gradient(160deg,#16302488,#12241C88);border:1px solid #34C77B33;border-radius:var(--r);padding:18px}
+.proj .row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--tx2);padding:7px 0;border-bottom:1px dashed #2E523F44}
+.proj .row b{color:var(--tx)}
+.proj .tot{display:flex;justify-content:space-between;align-items:baseline;padding-top:13px}
+.proj .tot .l{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--tx2);font-weight:700}
+.proj .tot .v{font-size:25px;font-weight:800;color:var(--ouro2)}
+.proj .delta{text-align:right;font-size:13px;font-weight:800;color:var(--verde);margin-top:2px}
+
+footer{padding:26px clamp(16px,4vw,40px);border-top:1px solid var(--line);color:var(--tx3);font-size:11.5px;line-height:1.7;max-width:1280px;margin:0 auto}
+::-webkit-scrollbar{height:9px;width:9px}::-webkit-scrollbar-thumb{background:#23423488;border-radius:99px}::-webkit-scrollbar-track{background:transparent}
+@media(max-width:640px){.kgrid{grid-template-columns:1fr 1fr}.pill .v{font-size:18px}}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand">
+    <h1>RADAR LOJAS<span class="dot">.</span></h1>
+    <div class="sub"><b>Grupo Alcina Maria</b> · Recuperação do canal loja · O Boticário</div>
+  </div>
+  <div class="head-chips" id="headChips"></div>
+</header>
+
+<section class="ingest">
+  <div class="dropzone" id="dropzone">
+    <div class="dz-left">
+      <div class="dz-icon">⇪</div>
+      <div>
+        <h2>Arraste os relatórios aqui</h2>
+        <p>PDFs do <b>ABC de Vendas</b> (RetaguardaGB, 1 por loja) + planilha de <b>indicadores</b> (.xlsx ou .csv)</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="btnPick">Selecionar arquivos</button>
+      <button class="btn ghost" id="btnCopy" title="Copia um resumo do canal em texto para colar no Slack">Copiar resumo p/ Slack</button>
+    </div>
+    <input type="file" id="fileInput" accept=".pdf,.xlsx,.xls,.csv" multiple hidden>
+  </div>
+  <div class="filechips" id="fileChips"></div>
+</section>
+
+<nav class="tabs" role="tablist">
+  <button class="tab on" data-v="canal">Visão do canal</button>
+  <button class="tab" data-v="lojas">Lojas</button>
+  <button class="tab" data-v="estrategias">Estratégias</button>
+  <button class="tab" data-v="simulador">Simulador</button>
+</nav>
+
+<main>
+  <section class="view on" id="view-canal"></section>
+  <section class="view" id="view-lojas"></section>
+  <section class="view" id="view-estrategias"></section>
+  <section class="view" id="view-simulador"></section>
+</main>
+
+<footer>
+  <b style="color:var(--tx2)">Radar Lojas</b> — ferramenta interna do Grupo Alcina Maria. Processamento 100% local no navegador: nenhum dado sai desta máquina.
+  Os impactos exibidos são <b>estimativas aritméticas</b> sobre os dados carregados (tudo o mais constante) — use como ordem de grandeza para priorizar, não como meta contratual.
+  Validação automática: cada PDF é conferido contra o próprio rodapé (TOTAL GERAL) antes de entrar na análise. Boletos/dia usa dias corridos do período do relatório.
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* ============================================================
+   RADAR LOJAS · Grupo Alcina Maria
+   Núcleo: parsers (validados), análise e motor de estratégias
+   ============================================================ */
+'use strict';
+if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+/* ---------- CONFIG (edite aqui se quiser fixar nomes/réguas) ---------- */
+const CONFIG = {
+  nomesLojas: {
+    // '24303': 'Penedo Matriz',  ← preencha o de-para código → nome da loja
+  },
+  diasMes: 30.44,
+  regua: {
+    fidelidade:       { otimo: 95, aceitavel: 85 },   // % (régua oficial do painel)
+    descontoEtiqueta: { ok: 22, atencao: 28 },        // % sobre preço de etiqueta
+    itensBoleto:      { bom: 3.0, atencao: 2.5 },
+    trocasPct:        { ok: 1.5, atencao: 3.0 },      // % da receita líquida
+    recorrencia:      { bom: 12, atencao: 8 },        // % do faturamento em make+skin+capilar
+    caudaPct:         { ok: 20, atencao: 30 },        // % de SKUs com < R$100 no período
+  },
+  simulador: { maxDescPP: 8, maxItens: 1.0, maxBoletosDia: 10 },
+  itemCrossFallback: 45  // R$ do item de venda adicional quando a loja não tem Corpo & Banho
+};
+
+/* ---------- Utils ---------- */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const brNum = s => parseFloat(String(s).replace(/\./g, '').replace(',', '.'));
+const fmtBRL = (v, dec=0) => v==null||isNaN(v) ? '—' : v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:dec,maximumFractionDigits:dec});
+const fmtN = (v, dec=0) => v==null||isNaN(v) ? '—' : v.toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+const fmtPct = (v, dec=1) => v==null||isNaN(v) ? '—' : fmtN(v,dec)+'%';
+const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const dtBR = s => { const [d,m,a] = s.split('/').map(Number); return new Date(a, m-1, d); };
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+
+/* ---------- Parser PDF (ABC RetaguardaGB) — lógica validada ---------- */
+function buildLines(items, vp){
+  const rows = [];
+  for (const it of items){
+    if (!it.str || !it.str.trim()) continue;
+    // os PDFs reais do RetaguardaGB saem com a página rotacionada (rotate=90):
+    // mapear para o espaço do viewport antes de agrupar, senão cada coluna vira uma "linha"
+    const tr = pdfjsLib.Util.transform(vp.transform, it.transform);
+    const x = tr[4], y = tr[5];
+    let row = rows.find(r => Math.abs(r.y - y) < 2.5);
+    if (!row){ row = { y, parts: [] }; rows.push(row); }
+    row.parts.push({ x, w: it.width || 0, s: it.str });
+  }
+  rows.sort((a,b) => a.y - b.y); // y do viewport cresce para baixo: topo primeiro
+  return rows.map(r => {
+    r.parts.sort((a,b) => a.x - b.x);
+    let line = '', endX = null;
+    for (const p of r.parts){
+      if (endX === null) line = p.s;
+      else line += (p.x - endX > 1.2 ? ' ' : '') + p.s;
+      endX = p.x + p.w;
+    }
+    return line;
+  });
+}
+const DATA_RE = /^\s*(?:(\d+)\s+)?(\d{14})\s+(.*?)\s*(\d[\d.]*,\d{3})\s+(-?[\d.]*,\d{2})\s+(-?[\d.]*,\d{2})\s+(-?[\d.]*,\d{2})\s+(-?[\d.]*,\d{2})\s+(-?[\d.]*,\d{2})\s+(-?[\d.]*,\d{2})\s+(-?[\d.,]+)\s*%\s+(-?[\d.,]+)\s*%/;
+function isSkipLine(line){
+  if (/Relatório de ABC|RetaguardaGB|Página\s*\d+\s*\/|TOTAL GERAL|TOTAL DE ITENS|TOTAL DE TROCAS|TOTAL DE DEVOL|VENDA LIQUIDA/i.test(line)) return true;
+  if (/^\s*Filtros\s*:/.test(line)) return true;
+  if (/\];/.test(line) && /:/.test(line)) return true;
+  if (/Prc\.\s*Médio|Markup|Faturamento\s+Prc|^\s*Num\.\s/.test(line)) return true;
+  if (/^\s*Imposto\s*$|^\s*\*?Margem\b/.test(line)) return true;
+  return false;
+}
+async function parseABC(buf){
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+  const allLines = [];
+  for (let p = 1; p <= doc.numPages; p++){
+    const page = await doc.getPage(p);
+    const vp = page.getViewport({ scale: 1 });
+    const tc = await page.getTextContent();
+    allLines.push(...buildLines(tc.items, vp));
+  }
+  const text = allLines.join('\n');
+  const meta = {};
+  let m = text.match(/Lojas:\s*\[?(\d+)/);                                   meta.codigo = m ? m[1] : null;
+  m = text.match(/Período:\s*\[(\d{2}\/\d{2}\/\d{4})\s*à\s*(\d{2}\/\d{2}\/\d{4})\]/);
+  if (m){ meta.inicio = m[1]; meta.fim = m[2]; }
+  const ti = allLines.findIndex(l => /Relatório de ABC/i.test(l));
+  if (ti >= 0){ for (let i = ti+1; i < ti+4; i++){ const l = allLines[i]; if (l && !/Filtros|\];/.test(l)){ meta.razao = l.trim().replace(/Filtros.*$/,'').trim(); break; } } }
+  m = text.match(/TOTAL GERAL:\s*([\d.]+,\d{3})\s+([\d.]*,\d{2})\s+([\d.]*,\d{2})\s+([\d.]*,\d{2})\s+([\d.]*,\d{2})\s+(-?[\d.]*,\d{2})/);
+  if (m) meta.total = { qtd: brNum(m[1]), fat: brNum(m[2]), custo: brNum(m[3]), lucro: brNum(m[6]) };
+  m = text.match(/TOTAL DE ITENS DISTINTOS LISTADOS:\s*(\d+)/);              meta.itensDistintos = m ? +m[1] : null;
+  m = text.match(/TOTAL DE TROCAS:\s*(\d+)\s+([\d.]*,\d{2})/);               if (m) meta.trocas = { qtd:+m[1], valor: brNum(m[2]) };
+  m = text.match(/TOTAL DE DEVOLU[ÇC][ÕO]ES:\s*(\d+)\s+([\d.]*,\d{2})/i);    if (m) meta.devolucoes = { qtd:+m[1], valor: brNum(m[2]) };
+  m = text.match(/VENDA LIQUIDA:\s*([\d.]*,\d{2})/);                         meta.vendaLiquida = m ? brNum(m[1]) : null;
+
+  const items = []; let pendingBefore = []; let last = null;
+  for (const raw of allLines){
+    const line = raw.trimEnd();
+    if (!line.trim() || isSkipLine(line)) continue;
+    const d = DATA_RE.exec(line);
+    if (d){
+      const it = { sku: String(+d[2]), nomeInline: d[3].trim(), nomePre: pendingBefore.join(' ').trim(), nomePos: '',
+        qtd: brNum(d[4]), fat: brNum(d[5]), prc: brNum(d[6]), custo: brNum(d[7]), lucro: brNum(d[10]) };
+      items.push(it); last = it; pendingBefore = [];
+    } else {
+      const txt = line.trim();
+      if (last && last.nomeInline === '' && last.nomePos === '' && pendingBefore.length === 0) last.nomePos = txt;
+      else pendingBefore.push(txt);
+    }
+  }
+  const out = items.map(it => [it.sku, (it.nomePre+' '+it.nomeInline+' '+it.nomePos).replace(/\s+/g,' ').trim(), it.qtd, it.fat, it.custo, it.lucro]);
+  return { meta, items: out };
+}
+function validarABC(parsed){
+  const t = parsed.meta.total || {};
+  const s = k => parsed.items.reduce((a,b) => a + b[k], 0);
+  const sq = s(2), sf = s(3), sc = s(4), sl = s(5);
+  const difs = [], notas = [];
+  if (t.fat == null) difs.push('rodapé TOTAL GERAL não encontrado'); // sem rodapé não há o que conferir: selo negado
+  if (t.qtd != null && Math.abs(sq - t.qtd) > 0.01)  difs.push(`qtd Δ${fmtN(sq - t.qtd,1)}`);
+  if (t.fat != null && Math.abs(sf - t.fat) > 0.05)  difs.push(`fat Δ${fmtBRL(sf - t.fat,2)}`);
+  if (t.custo != null && Math.abs(sc - t.custo) > 0.05) difs.push(`custo Δ${fmtBRL(sc - t.custo,2)}`);
+  if (t.lucro != null && Math.abs(sl - t.lucro) > 0.05) difs.push(`lucro Δ${fmtBRL(sl - t.lucro,2)}`);
+  // o ERP pode contar "itens distintos" diferente das linhas listadas (visto na 5905): não bloqueia o selo se as 4 somas fecham
+  if (parsed.meta.itensDistintos != null && parsed.items.length !== parsed.meta.itensDistintos)
+    (difs.length ? difs : notas).push(`itens ${parsed.items.length}≠${parsed.meta.itensDistintos}`);
+  return { ok: difs.length === 0, difs, notas };
+}
+
+/* ---------- Parser XLSX (indicadores) — lógica validada ---------- */
+const COLMAP = {
+  'gmv-gmv':'gmv','gmv-boleto medio':'ticket','gmv-qtd de boletos':'boletos','gmv-itens por boleto':'itensBoleto',
+  'meta receita-meta receita':'metaReceita','meta receita-atingimento':'metaAting','meta receita-crescimento ano anterior':'crescimento',
+  'meta complementar-meta boleto medio':'metaTicket','meta complementar-atingimento meta boleto medio':'metaTicketAting',
+  'meta complementar-meta itens por boleto':'metaItens','meta complementar-atingimento itens por boleto':'metaItensAting',
+  'valores de vendas-receita liquida':'receitaLiq','valores de vendas-receita liquida (-) trocas':'receitaLiqTrocas',
+  'valores de vendas-b1':'b1Valor','fidelidade-qtd de boletos':'fidBoletos','fidelidade-penetracao boletos':'fidPct',
+  'descontos-total de descontos':'descontos','trocas-trocas':'trocasValor','trocas-qtd de trocas':'trocasQtd',
+  'cartao presente-recarga':'recarga','quantitativo-b1':'b1Qtd'
+};
+const toNum = v => { if (v==null||v==='') return null; if (typeof v==='number') return v;
+  const n = parseFloat(String(v).replace(/\./g,'').replace(',','.')); return isNaN(n)?null:n; };
+function decodeTexto(buf){
+  const txt = new TextDecoder('utf-8').decode(buf);
+  return txt.includes('�') ? new TextDecoder('windows-1252').decode(buf) : txt; // exportações do ERP costumam vir em ANSI
+}
+function parseIndicadores(src, csv){
+  // csv: ler como texto com raw:true — se o SheetJS coagir número, "207,15" vira 20715
+  const wb = csv ? XLSX.read(src, { type:'string', raw:true }) : XLSX.read(src, { type:'array' });
+  const out = [];
+  for (const name of wb.SheetNames){
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header:1, defval:null });
+    const hi = rows.findIndex(r => r && r.some(c => norm(c).includes('listar por lojas') || norm(c) === 'gmv-gmv'));
+    if (hi < 0) continue;
+    const hdr = rows[hi].map(norm);
+    const idx = {}; hdr.forEach((h,i) => { if (COLMAP[h]) idx[COLMAP[h]] = i; });
+    let lojaCol = hdr.findIndex(h => h.includes('listar por lojas')); if (lojaCol < 0) lojaCol = hdr.findIndex(h => h.includes('loja')); if (lojaCol < 0) lojaCol = 0;
+    for (let r = hi+1; r < rows.length; r++){
+      const row = rows[r]; if (!row) continue;
+      const m = String(row[lojaCol] || '').match(/^(\d{3,})\s*-\s*(.+)$/);
+      if (!m) continue;
+      const o = { codigo: m[1], razao: m[2].trim() };
+      for (const k in idx) o[k] = toNum(row[idx[k]]);
+      out.push(o);
+    }
+  }
+  return out;
+}
+
+/* ---------- Classificação marca / categoria ---------- */
+function marcaDe(nome){
+  const n = nome.toUpperCase();
+  const n2 = n.replace(/^(REF|REFIL|PMPCK|ESTJ|KIT|COMB|SACHET)\s+/, '');
+  const first = (n2.split(' ')[0] || '');
+  if (/^(SACOLA|CAIXA|CX)$/.test(first)) return 'Embalagens';
+  if (first.startsWith('BOTI')){
+    if (/BOTI SUN/.test(n2)) return 'Boti Sun';
+    if (/BOTI BABY/.test(n2)) return 'Boti Baby';
+    if (first === 'BOTIK') return 'Botik';
+    if (first === 'BOTICOLL') return 'Boticollection';
+    if (first === 'BOTICA') return 'Botica 214';
+    return 'Boticário (acessórios)';
+  }
+  const M = { FLORATTA:'Floratta', MALBEC:'Malbec', EGEO:'Egeo', LILY:'Lily', GLAMOUR:'Glamour', LINDA:'Linda',
+    LIZ:'Liz', ELYSEE:'Elysée', HER:'Her Code', CELEBRE:'Celebre', ACCORDES:'Accordes', COFFEE:'Coffee',
+    ZAAD:'Zaad', ARBO:'Arbo', QUASAR:'Quasar', UOMINI:'Uomini', CLASH:'Clash', THE:'The Blend',
+    NSPA:'Nativa SPA', CBEM:'Cuide-se Bem', MAKE:'Make B', INTENSE:'Intense', MATCH:'Match', DR:'Dr Botica',
+    NEXT:'Next', MEN:'Men', SOPHIE:'Sophie', DREAM:'Dream', MA:'Ma Chérie', THATY:'Thaty', CECITA:'Cecita',
+    FREE:'Free', INSENSATEZ:'Insensatez', HADIYA:'Hadiya', AU:'Au.Migos (pet)' };
+  return M[first] || 'Outros';
+}
+function categoriaDe(nome){
+  const n = nome.toUpperCase();
+  if (/^(SACOLA|CAIXA|CX)\b/.test(n)) return 'Embalagens/Inst.';
+  if (/^(ESTJ|KIT|COMB)\b/.test(n)) return 'Kits & Estojos';
+  if (/NECESS/.test(n)) return 'Acessórios';
+  if (/\b(EDP|EDC|DES COL|COLONIA)\b/.test(n) && !/SPLSH|BDY SPR/.test(n)) return 'Perfumaria';
+  if (/^(SOPHIE|NEXT|DREAM|MA CHERIE)\b.*\bCOL\b/.test(n) && !/SPLSH/.test(n)) return 'Perfumaria';
+  if (/SPLSH|BDY SPR|HAIR MIST/.test(n)) return 'Body splash/spray';
+  if (/\b(BAT|LAP|BAS LIQ|BASE LIQ|MASC CIL|PO COMP|BAS PO|GLOS|CORRET|BLUSH|PALETTE|PLT|ILUM|SOBRANC|ESPNJ|BRLH LAB|HID LAB|BALM)\b/.test(n)) return 'Maquiagem';
+  if (/\b(SHAMP|COND|MASC CAP|CR PENT|CREM PENT|LEAVE|TON CAP|ACIDIFICANTE|QUERATINA|SPR CAP|SPR BRLH|GEL FIX|PASTA MODEL)\b/.test(n)) return 'Capilar';
+  if (/\b(SRUM|SRM|GEL LIMP FAC|GEL LIM FAC|GEL CONC LIMP|AGUA MICLR|CR HID FAC|CREM HID FAC|MULTIPR FAC|MULTIREP FAC|ADESIVO FAC|GEL HID FAC|CR CON OLH|CR NUTR FIRM|GEL\/LIMP FAC)\b/.test(n)) return 'Skincare';
+  if ((/\b(BOTI SUN|PROT SOL|FPS)\b/.test(n)) && !/MAO/.test(n)) return 'Solar';
+  if (/BOTI BABY/.test(n)) return 'Infantil';
+  return 'Corpo & Banho';
+}
+
+/* ---------- Análise do ABC por loja ---------- */
+function analisarABC(parsed){
+  const its = parsed.items.map(a => ({ sku:a[0], nome:a[1], qtd:a[2], fat:a[3], custo:a[4], lucro:a[5],
+    prc: a[2] ? a[3]/a[2] : 0, marca: marcaDe(a[1]), cat: categoriaDe(a[1]) }));
+  const fat = its.reduce((s,i)=>s+i.fat,0), lucro = its.reduce((s,i)=>s+i.lucro,0), qtd = its.reduce((s,i)=>s+i.qtd,0);
+  const ord = [...its].sort((a,b)=>b.fat-a.fat);
+  let ac = 0; const curva = { A:{skus:0,fat:0}, B:{skus:0,fat:0}, C:{skus:0,fat:0} };
+  for (const i of ord){ ac += i.fat; const c = ac/fat<=0.80?'A':ac/fat<=0.95?'B':'C'; i.curva=c; curva[c].skus++; curva[c].fat+=i.fat; }
+  const byCat = {}, byMarca = {};
+  for (const i of its){
+    (byCat[i.cat] = byCat[i.cat] || {fat:0,qtd:0,lucro:0,skus:0});
+    byCat[i.cat].fat+=i.fat; byCat[i.cat].qtd+=i.qtd; byCat[i.cat].lucro+=i.lucro; byCat[i.cat].skus++;
+    (byMarca[i.marca] = byMarca[i.marca] || {fat:0,qtd:0});
+    byMarca[i.marca].fat+=i.fat; byMarca[i.marca].qtd+=i.qtd;
+  }
+  const recorrFat = ['Maquiagem','Skincare','Capilar'].reduce((s,c)=>s+(byCat[c]?byCat[c].fat:0),0);
+  const cb = byCat['Corpo & Banho'];
+  const kits = {};
+  for (const i of its){ const m = i.nome.match(/\b(NAT|MAES|AMOR|PAIS|CRIANC)\/(\d{2})\b/); if (m){ const k=m[1]+'/'+m[2]; (kits[k]=kits[k]||{fat:0,qtd:0,skus:0}); kits[k].fat+=i.fat; kits[k].qtd+=i.qtd; kits[k].skus++; } }
+  const brindes = its.filter(i => i.prc < 5 || /\bPRM\b/.test(i.nome));
+  const lucroNeg = its.filter(i => i.lucro < 0);
+  const cauda = its.filter(i => i.fat < 100);
+  const dias = parsed.meta.inicio ? Math.round((dtBR(parsed.meta.fim) - dtBR(parsed.meta.inicio))/86400000) + 1 : null;
+  return { its, ord, fat, lucro, qtd, margem: fat?lucro/fat*100:null, curva, byCat, byMarca,
+    recorrPct: fat?recorrFat/fat*100:null, precoItemCB: cb && cb.qtd ? cb.fat/cb.qtd : null,
+    kits, brindes: { n:brindes.length, qtd:brindes.reduce((s,i)=>s+i.qtd,0), custo:brindes.reduce((s,i)=>s+i.custo,0), fat:brindes.reduce((s,i)=>s+i.fat,0) },
+    lucroNeg: { n:lucroNeg.length, total:lucroNeg.reduce((s,i)=>s+i.lucro,0) },
+    cauda: { n:cauda.length, pct: its.length?cauda.length/its.length*100:0, fat:cauda.reduce((s,i)=>s+i.fat,0) },
+    qtd1: its.filter(i=>i.qtd===1).length,
+    top20share: fat ? ord.slice(0,20).reduce((s,i)=>s+i.fat,0)/fat*100 : null,
+    dias };
+}
+
+/* ---------- Estado e merge ---------- */
+const state = { stores: new Map(), files: [], nomes: {...CONFIG.nomesLojas} };
+function getStore(cod){ if (!state.stores.has(cod)) state.stores.set(cod, { codigo: cod }); return state.stores.get(cod); }
+function periodoGlobal(){
+  const ps = [...state.stores.values()].filter(s=>s.pdfMeta&&s.pdfMeta.inicio).map(s=>s.pdfMeta.inicio+' à '+s.pdfMeta.fim);
+  if (!ps.length) return null;
+  const freq = {}; ps.forEach(p=>freq[p]=(freq[p]||0)+1);
+  const top = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0][0];
+  return { label: top, divergem: Object.keys(freq).length > 1 };
+}
+function derivar(s){
+  const d = { codigo: s.codigo };
+  d.nome = state.nomes[s.codigo] || '';
+  d.razao = (s.pdfMeta && s.pdfMeta.razao) || (s.ind && s.ind.razao) || '';
+  d.dias = s.abc ? s.abc.dias : (periodoGlobal() && state.stores.size ? diasGlobais() : null);
+  d.meses = d.dias ? d.dias/30.4375 : null;
+  if (s.ind){
+    const i = s.ind;
+    d.gmv = i.gmv; d.ticket = i.ticket; d.boletos = i.boletos; d.itensBoleto = i.itensBoleto;
+    d.receitaLiq = i.receitaLiq; d.receitaLiqTrocas = i.receitaLiqTrocas;
+    d.fidPct = i.fidPct; d.descontos = i.descontos; d.trocasValor = i.trocasValor; d.trocasQtd = i.trocasQtd;
+    d.recarga = i.recarga; d.b1Valor = i.b1Valor; d.b1Qtd = i.b1Qtd;
+    d.metaReceita = i.metaReceita; d.metaAting = i.metaAting; d.crescimento = i.crescimento;
+    d.etiqueta = (i.gmv!=null && i.descontos!=null) ? i.gmv + i.descontos : null;
+    d.descEtiqPct = d.etiqueta ? i.descontos/d.etiqueta*100 : null;
+    d.descPorBoleto = (i.descontos!=null && i.boletos) ? i.descontos/i.boletos : null;
+    d.trocasPct = (i.trocasValor!=null && i.receitaLiq) ? i.trocasValor/i.receitaLiq*100 : null;
+    d.b1Pct = (i.b1Valor!=null && i.gmv) ? i.b1Valor/i.gmv*100 : null;
+    if (d.meses){ d.gmvMes = i.gmv/d.meses; d.boletosMes = i.boletos/d.meses; d.etiquetaMes = d.etiqueta?d.etiqueta/d.meses:null; d.receitaMes = i.receitaLiq/d.meses; }
+    if (d.dias) d.boletosDia = i.boletos/d.dias;
+  }
+  if (s.abc){
+    d.margem = s.abc.margem; d.recorrPct = s.abc.recorrPct; d.precoItemCB = s.abc.precoItemCB;
+    d.caudaPct = s.abc.cauda.pct; d.top20share = s.abc.top20share;
+    d.fatPDF = s.abc.fat; d.lucroPDF = s.abc.lucro; d.qtdPDF = s.abc.qtd;
+    if (!d.gmvMes && d.meses) d.gmvMes = s.abc.fat/d.meses;
+  }
+  d.temPDF = !!s.abc; d.temInd = !!s.ind;
+  return d;
+}
+function diasGlobais(){
+  const ps = [...state.stores.values()].filter(s=>s.abc&&s.abc.dias);
+  return ps.length ? ps[0].abc.dias : null;
+}
+function canalAgregado(lojas){
+  const c = { n: lojas.length };
+  const sum = k => lojas.reduce((s,l)=>s+(l[k]||0),0);
+  c.gmv = sum('gmv'); c.boletos = sum('boletos'); c.descontos = sum('descontos'); c.etiqueta = sum('etiqueta');
+  c.receitaLiq = sum('receitaLiq'); c.trocasValor = sum('trocasValor'); c.recarga = sum('recarga'); c.b1Valor = sum('b1Valor');
+  c.ticket = c.boletos ? c.gmv/c.boletos : null;
+  const ib = lojas.filter(l=>l.itensBoleto!=null&&l.boletos);
+  c.itensBoleto = ib.length ? ib.reduce((s,l)=>s+l.itensBoleto*l.boletos,0)/ib.reduce((s,l)=>s+l.boletos,0) : null;
+  const fp = lojas.filter(l=>l.fidPct!=null&&l.boletos);
+  c.fidPct = fp.length ? fp.reduce((s,l)=>s+l.fidPct*l.boletos,0)/fp.reduce((s,l)=>s+l.boletos,0) : null;
+  c.descEtiqPct = c.etiqueta ? c.descontos/c.etiqueta*100 : null;
+  c.descPorBoleto = c.boletos ? c.descontos/c.boletos : null;
+  c.trocasPct = c.receitaLiq ? c.trocasValor/c.receitaLiq*100 : null;
+  const dd = lojas.filter(l=>l.boletosDia!=null);
+  c.boletosDiaMedia = dd.length ? dd.reduce((s,l)=>s+l.boletosDia,0)/dd.length : null;
+  const mg = lojas.filter(l=>l.margem!=null&&l.fatPDF);
+  c.margem = mg.length ? mg.reduce((s,l)=>s+l.margem*l.fatPDF,0)/mg.reduce((s,l)=>s+l.fatPDF,0) : null;
+  const rc = lojas.filter(l=>l.recorrPct!=null&&l.fatPDF);
+  c.recorrPct = rc.length ? rc.reduce((s,l)=>s+l.recorrPct*l.fatPDF,0)/rc.reduce((s,l)=>s+l.fatPDF,0) : null;
+  const ms = lojas.filter(l=>l.meses); c.meses = ms.length ? ms[0].meses : null;
+  if (c.meses){ c.gmvMes = c.gmv/c.meses; c.etiquetaMes = c.etiqueta/c.meses; c.boletosMes = c.boletos/c.meses; }
+  c.b1Pct = c.gmv ? c.b1Valor/c.gmv*100 : null;
+  return c;
+}
+
+/* ---------- Motor de estratégias ---------- */
+function nomeLoja(l){ return l.nome || apelidoRazao(l) || ('Loja ' + l.codigo); }
+function apelidoRazao(l){ return null; }
+function gerarEstrategias(lojas, canal){
+  const out = [];
+  const R = CONFIG.regua;
+  for (const l of lojas){
+    const nm = nomeLoja(l);
+    /* 1 · Disciplina de desconto */
+    if (l.descEtiqPct != null && l.etiquetaMes){
+      const mediaCanal = canal.n > 1 ? canal.descEtiqPct : null;
+      const acima = mediaCanal != null ? l.descEtiqPct > mediaCanal + 1.5 : l.descEtiqPct > R.descontoEtiqueta.atencao;
+      const altoAbs = l.descEtiqPct > R.descontoEtiqueta.ok;
+      if (acima || altoAbs){
+        const alvo = Math.max(mediaCanal != null ? mediaCanal : l.descEtiqPct - 3, l.descEtiqPct - 3, 18);
+        const pp = Math.max(l.descEtiqPct - alvo, 0.5);
+        const imp = pp/100 * l.etiquetaMes;
+        out.push({ loja:l, sev: acima && l.descEtiqPct > R.descontoEtiqueta.atencao ? 'critico':'atencao', somavel:true, impacto: imp,
+          titulo: 'Disciplina de desconto no caixa',
+          diag: `${nm} concede <b>${fmtPct(l.descEtiqPct)}</b> de desconto médio sobre a etiqueta (${fmtBRL(l.descontos)} no período · <b>${fmtBRL(l.descPorBoleto,2)} por cupom</b>)` + (mediaCanal!=null?` — canal está em ${fmtPct(mediaCanal)}.`:'.'),
+          meta: `Reduzir ${fmtN(pp,1)} p.p. → ~${fmtPct(alvo)} de desconto médio`,
+          acoes: [
+            'Extrair no RetaguardaGB o desconto manual por operador/cupom e separar do desconto de campanha (B1, combos, encarte)',
+            'Definir alçada: desconto manual acima de 10% só com autorização da gerente; acima de 15%, só você',
+            'Conferência diária dos 5 maiores descontos do dia com justificativa no grupo da loja',
+            'Substituir “desconto de balcão” por oferta de mecânica vigente (B1/combo) — preserva margem e mantém a conversão',
+            'Acompanhar o indicador “desconto R$/cupom” na reunião semanal (hoje: ' + fmtBRL(l.descPorBoleto,2) + ')'
+          ],
+          fonte: 'Impacto = p.p. reduzidos × etiqueta mensal, mantendo o volume vendido.' });
+      }
+    }
+    /* 2 · Venda adicional (itens/boleto) */
+    if (l.itensBoleto != null && l.boletosMes){
+      const mediaCanal = canal.n > 1 ? canal.itensBoleto : null;
+      const baixo = l.itensBoleto < R.itensBoleto.bom || (mediaCanal != null && l.itensBoleto < mediaCanal - 0.1);
+      if (baixo){
+        const alvoRaw = Math.max(l.itensBoleto + 0.3, mediaCanal || 0);
+        const alvo = Math.min(alvoRaw, 3.2);
+        const delta = Math.max(alvo - l.itensBoleto, 0.15);
+        const precoItem = l.precoItemCB || CONFIG.itemCrossFallback;
+        const imp = delta * l.boletosMes * precoItem;
+        out.push({ loja:l, sev: l.itensBoleto < R.itensBoleto.atencao ? 'atencao' : 'oportunidade', somavel:true, impacto: imp,
+          titulo: 'Rotina de venda adicional (subir itens/cupom)',
+          diag: `${nm} fecha <b>${fmtN(l.itensBoleto,2)} itens por cupom</b> com ticket de ${fmtBRL(l.ticket,2)} — o cliente leva o perfume e pouco mais. Item médio de Corpo & Banho na loja: <b>${fmtBRL(precoItem,2)}</b>.`,
+          meta: `+${fmtN(delta,2)} item/cupom → ${fmtN(alvo,2)} itens por cupom`,
+          acoes: [
+            'Script obrigatório de 2º item no fechamento: oferta de até R$ 60 (sabonete em barra, body splash, hidratante) ligada ao perfume escolhido',
+            'Régua “ninguém sai só com 1 item”: meta diária de itens/cupom por atendente, visível no quadro da loja',
+            'Montar 3 “duplas prontas” no balcão do caixa (perfume herói + cuidado da mesma marca) com preço fechado',
+            'Usar amostras/PRM como gancho: entregar a amostra junto da oferta do produto cheio na próxima visita',
+            'Premiação semanal simbólica para o maior itens/cupom da equipe'
+          ],
+          fonte: 'Impacto = Δitens × cupons/mês × preço médio do item de Corpo & Banho da própria loja.' });
+      }
+    }
+    /* 3 · Fluxo / tráfego */
+    if (l.boletosDia != null && l.ticket){
+      const media = canal.n > 1 ? canal.boletosDiaMedia : null;
+      const fraco = media != null ? l.boletosDia < media * 0.9 : true;
+      const alvo = media != null && l.boletosDia < media ? media : l.boletosDia * 1.15;
+      const delta = alvo - l.boletosDia;
+      if (fraco && delta > 0.3){
+        const imp = delta * CONFIG.diasMes * l.ticket;
+        out.push({ loja:l, sev: media != null && l.boletosDia < media*0.75 ? 'critico' : 'atencao', somavel:true, impacto: imp,
+          titulo: 'Plano de tráfego: mais gente passando no caixa',
+          diag: `${nm} registra <b>${fmtN(l.boletosDia,1)} cupons/dia</b> (dias corridos)` + (media!=null?` — média do canal: ${fmtN(media,1)}.`:'.') + ` Com ${fmtPct(l.fidPct,1)} dos cupons identificados, a base de clientes é ouro parado para CRM.`,
+          meta: `+${fmtN(delta,1)} cupom/dia → ${fmtN(alvo,1)}/dia`,
+          acoes: [
+            'Disparo WhatsApp segmentado pela base identificada (Clube Viva): aniversariantes do mês, inativos 90+ dias e compradores das marcas heróis da loja',
+            'Reativação de inativos com oferta de retorno (amostra + condição na 2ª compra) — integrar com a rotina do Foco Atividade',
+            'Agenda fixa de ação local quinzenal: parceria com salão/academia/escola do bairro com voucher rastreável',
+            'Vitrine e calçada: troca semanal do produto-isca com preço visível (hoje os heróis são os 20 SKUs da curva A)',
+            'Garantir 2º atendente no caixa nos horários de pico de sexta e sábado'
+          ],
+          fonte: 'Impacto = Δcupons/dia × 30,44 × ticket atual da loja.' });
+      }
+    }
+    /* 4 · Cartão presente zerado */
+    if (l.recarga === 0 && l.gmvMes){
+      const imp = 0.01 * l.gmvMes;
+      out.push({ loja:l, sev:'oportunidade', somavel:true, impacto: imp,
+        titulo: 'Ativar o cartão presente (recarga zerada)',
+        diag: `${nm} fechou o período com <b>R$ 0,00</b> de recarga de cartão presente — em ~6 meses que incluíram Mães e Namorados.`,
+        meta: 'Meta inicial: 1% do GMV mensal em recargas',
+        acoes: [
+          'Expor o cartão presente no caixa e na vitrine de datas (próxima grande: Dia dos Pais, 09/08)',
+          'Oferta ativa no fechamento: “prefere levar um cartão presente e deixar a pessoa escolher?” quando o cliente está em dúvida',
+          'Meta por loja e por atendente nas semanas de data comemorativa',
+          'Divulgar no WhatsApp da base como solução de presente de última hora'
+        ],
+        fonte: 'Estimativa conservadora: 1% do GMV mensal. Recarga vira venda quando o cartão é usado.' });
+    }
+    /* 5 · Fidelidade */
+    if (l.fidPct != null && l.fidPct < R.fidelidade.otimo){
+      out.push({ loja:l, sev: l.fidPct < R.fidelidade.aceitavel ? 'critico' : 'oportunidade', somavel:false, impacto: null,
+        titulo: 'Fechar a régua de identificação (Clube Viva)',
+        diag: `${nm} identifica <b>${fmtPct(l.fidPct)}</b> dos cupons — régua: ≥95% ótimo, ≥85% aceitável. Cada cupom não identificado é um cliente fora das campanhas de CRM.`,
+        meta: `Subir para ≥95% de penetração`,
+        acoes: [
+          'CPF antes de finalizar: travar o fluxo de caixa com a pergunta padrão, sem exceção',
+          'Contador visível: % de identificação do dia no quadro da loja',
+          'Reforço de roteiro: benefício imediato para o cliente (pontos, brinde de aniversário) em 1 frase',
+          'Auditar os cupons não identificados da semana: qual operador, qual horário'
+        ],
+        fonte: 'Sem estimativa em R$ — efeito é indireto (recorrência via CRM).' });
+    }
+    /* 6 · Mix raso de recorrência */
+    if (l.recorrPct != null && l.recorrPct < R.recorrencia.atencao && l.gmvMes){
+      const imp = (R.recorrencia.atencao + 2 - l.recorrPct)/100 * l.gmvMes * 0.5;
+      out.push({ loja:l, sev:'atencao', somavel:false, impacto: imp,
+        titulo: 'Engrossar o mix de recorrência (make · skincare · capilar)',
+        diag: `Em ${nm}, maquiagem + skincare + capilar somam só <b>${fmtPct(l.recorrPct)}</b> do faturamento. São as categorias que trazem o cliente de volta em 30–45 dias — perfumaria volta a cada 3–6 meses.`,
+        meta: `Elevar recorrência para ≥${fmtN(R.recorrencia.atencao+2)}% do faturamento`,
+        acoes: [
+          'Ponto extra de skincare (Botik) e make (Intense, preço de entrada) na rota até o caixa',
+          'Cross obrigatório: perfume feminino → oferta de batom/hidratante facial; masculino → pós-barba/cuidado',
+          'Treinar 1 “especialista de pele” por loja para demonstração rápida no balcão',
+          'Meta semanal de unidades de make+skin por atendente (começar com 1/dia por pessoa)'
+        ],
+        fonte: 'Impacto exibido como potencial indireto (50% do gap) — não entra na soma do potencial total.' });
+    }
+    /* 7 · Trocas altas */
+    if (l.trocasPct != null && l.trocasPct > R.trocasPct.ok && l.receitaMes){
+      const imp = (l.trocasPct - R.trocasPct.ok)/100 * l.receitaMes;
+      out.push({ loja:l, sev: l.trocasPct > R.trocasPct.atencao ? 'critico' : 'atencao', somavel:true, impacto: imp,
+        titulo: 'Reduzir trocas e devoluções',
+        diag: `${nm} devolve <b>${fmtPct(l.trocasPct)}</b> da receita em trocas (${l.trocasQtd} ocorrências · ${fmtBRL(l.trocasValor)}). Acima de ${fmtPct(R.trocasPct.ok)} costuma indicar venda empurrada ou erro de indicação.`,
+        meta: `Trazer para ≤${fmtPct(R.trocasPct.ok)} da receita`,
+        acoes: [
+          'Registrar o motivo de cada troca (produto errado, presente, arrependimento, defeito) por 30 dias',
+          'Reforçar prova/teste do produto antes do fechamento, principalmente em perfumaria',
+          'Transformar troca em upsell: roteiro de atendimento de troca com oferta complementar'
+        ],
+        fonte: 'Impacto = p.p. acima da régua × receita líquida mensal.' });
+    }
+    /* 8 · Cauda longa */
+    if (l.caudaPct != null && l.caudaPct > R.caudaPct.ok && l.temPDF){
+      const s = state.stores.get(l.codigo);
+      out.push({ loja:l, sev: l.caudaPct > R.caudaPct.atencao ? 'atencao' : 'oportunidade', somavel:false, impacto: null,
+        titulo: 'Enxugar a cauda longa do sortimento',
+        diag: `${nm} tem <b>${s.abc.cauda.n} SKUs (${fmtPct(l.caudaPct,0)})</b> que venderam menos de R$ 100 no período inteiro — juntos, só ${fmtBRL(s.abc.cauda.fat)} (${fmtPct(s.abc.cauda.fat/l.fatPDF*100,1)} do faturamento). ${s.abc.qtd1} SKUs venderam exatamente 1 unidade.`,
+        meta: 'Liberar espaço e capital dos SKUs sem giro',
+        acoes: [
+          'Cruzar a cauda com o estoque atual: o que tem saldo parado entra em lista de ação',
+          'Remanejar entre as lojas da rede: o que não gira aqui pode girar na loja onde a marca é forte',
+          'Queima orientada com mecânica (leve junto), nunca desconto seco no herói',
+          'Revisar o pedido mínimo dos SKUs de cauda no próximo ciclo de compra'
+        ],
+        fonte: 'Sem R$ — o relatório não traz posição de estoque (Exibir Estoque: Não).' });
+    }
+    /* 9 · Dependência dos heróis */
+    if (l.top20share != null && l.top20share > 35 && l.temPDF){
+      out.push({ loja:l, sev:'oportunidade', somavel:false, impacto:null,
+        titulo: 'Blindar o abastecimento dos 20 heróis',
+        diag: `Os 20 maiores SKUs respondem por <b>${fmtPct(l.top20share,0)}</b> do faturamento de ${nm}. Ruptura em qualquer um deles dói direto no resultado.`,
+        meta: 'Ruptura zero nos top 20 da curva A',
+        acoes: [
+          'Checklist semanal de presença em gôndola dos top 20 (lista na aba Lojas)',
+          'Estoque de segurança dedicado para os 5 primeiros',
+          'Alerta de reposição antecipada antes de datas comemorativas'
+        ],
+        fonte: 'Preventiva — protege a base de receita existente.' });
+    }
+  }
+  const sevOrd = { critico: 0, atencao: 1, oportunidade: 2 };
+  out.sort((a,b) => sevOrd[a.sev]-sevOrd[b.sev] || (b.impacto||0)-(a.impacto||0));
+  return out;
+}
+const SEED = {"pdf":{"meta":{"codigo":"24303","razao":"ACQUA DISTRIBUIDORA DE PERFUMES E COSMETICOS LTDA","inicio":"26/12/2025","fim":"12/06/2026","total":{"qtd":4400.0,"fat":332282.11,"custo":125447.81,"lucro":206784.9},"itensDistintos":702,"trocas":{"qtd":23,"valor":3717.6},"devolucoes":{"qtd":0,"valor":0.0},"vendaLiquida":328564.51},"items":[[1004,"FLORATTA DES COL MY BLUE 75ml",8,873.56,501.76,371.8],[1302,"PMPCK LILY DES ANTIT AER 2x75g",9,502.07,233.59,268.48],[1317,"PMPCK MALBEC DES ANTIT AER 2x75g",13,715.02,349.59,365.43],[1428,"NSPA LOC ANTIOX DES HID CPO M/RUBY 400ml",3,156.44,53.19,103.25],[1630,"NSPA DES COL BDY SPLSH M/RUBY 200ml",2,195.56,77.36,118.2],[1634,"NSPA GEL ESF CPO MORANGO RUBY 175G",2,52.1,41.7,10.4],[1640,"NSPA LOC ANTIOX DES HID CPO M/RUBY 200ml",3,97.89,79.17,18.72],[1787,"MAKE B BAS LIQ MATE SALICYLIC 120 30g",2,181.5,55.63,125.87],[1789,"MAKE B BAS LIQ MATE SALICYLIC 220 30g",1,56.94,38.53,18.41],[1806,"MAKE B BAS LIQ MATE SALICYLIC 180 30g",2,179.97,77.06,102.91],[1808,"MAKE B BAS LIQ MATE SALICYLIC 200 30g",1,46.43,38.53,7.9],[2100,"INTENSE BAT CREM POP ROSA 3,6g",3,49.45,24.42,25.03],[2215,"INTENSE BAT MAT INTENSE POP ROS/TELH 4g",2,35.53,18.14,17.39],[2483,"INTENSE LAP P/OLHO POP PRETO 1,1g",6,90.83,41.58,49.25],[3530,"CAIXA M INST 2021 VERDE ECONOMICA",1,2.92,0.0,2.92],[4480,"BOTIK ACQ GEL HID FAC ANTIS AC/POLIG 50g",2,158.25,34.2,124.05],[5009,"MA CHERIE DES COL 100ml V6",6,676.74,192.06,484.68],[5125,"MA CHERIE LOC DESC HID CPO 200ml",1,50.44,10.66,39.78],[7021,"CAIXA M INST 2021 LACO BAUNILHA",28,211.97,0.0,211.97],[12805,"SACHET G/PLUS LOCAO BR CANE FPS5 C10 VS2",1,74.94,0.0,74.94],[19734,"THATY DES COL BOTICOLL 100ML",8,1253.88,400.36,853.52],[22248,"CECITA DES COL BOTICOLL 100ML",8,1032.54,196.72,835.82],[22249,"FREE DES COL BOTICOLL 100ml V4",16,1578.78,847.7,731.08],[25458,"FLORATTA DES COL BLUE 75ml",3,418.63,189.03,229.6],[27707,"BOTICOLL CONNEXION DES COL 100ml V2",5,525.02,187.68,337.34],[27858,"MAKE B LAP RETR P/OLH PRET PCK",2,103.8,22.46,81.34],[29046,"BOTICOLL CONNEX DES BDY SPR 100ml V6 PCK",1,35.55,22.38,13.17],[29226,"ELYSEE CREM HID DES CPO ACETINADO 250g",1,144.9,53.35,91.55],[30247,"EGEO DES COL PINA BLAST 90ml",4,309.29,226.0,83.29],[33424,"ESTJ FLORATTA FLOWERS SORT REG/22",6,1158.49,525.31,633.18],[33427,"LILY GELEIA DES HID CORPORAL GLOW 250g",2,338.08,134.64,203.44],[37699,"REF MAKE B PO COMP FAC HYAL 30 8g",1,85.9,32.87,53.03],[40220,"ESTJ CBEM NUVEM REG/22",1,87.86,30.28,57.58],[46645,"ZAAD NECESS PES NAT/21 VDA",2,28.83,35.16,-7.38],[46898,"ZAAD EDP EXPEDITION 95ml",1,275.5,76.39,199.11],[47144,"CBEM DES ANTIT AER PROTECT/BTY 90g/150ml",1,37.9,16.78,21.12],[47145,"CBEM DES ANTIT ROLL PROTECT/BEAUTY 55ml",1,27.21,11.94,15.27],[47146,"CBEM DES ANTIT AER INV PROTECT 90g/150ml",1,31.18,16.78,14.4],[47150,"MEN DES ANTIT AER COOL PROTECT 90g/150ml",1,37.9,17.35,20.55],[47154,"CBEM DES ROLL S/ALUM 55ml",3,73.7,31.54,42.16],[47321,"BOTIK SRUM ALT/POT ACID MAND/TRANEX 30ml",1,142.33,37.81,104.52],[47339,"LIZ DES COL SUBLIME 100ml",11,1544.8,342.98,1201.82],[47552,"BOTICA 214 EDP FOUG AROM VER/FIRENZ 90ml",6,1008.9,297.3,711.6],[47553,"BOTICA 214 EDP FLOR FRUT VER/FIRENZ 75ml",2,437.13,83.76,353.37],[47594,"BOTI SUN PROT CPO FPS 50 200g",2,146.11,73.24,72.87],[47599,"BOTI SUN PROT FAC ANTIOL A/FL FPS70 40ml",2,133.73,32.06,101.67],[47602,"BOTI SUN PR FAC ANTIS ACQ FLD FPS70 40ml",2,155.19,31.4,123.79],[47629,"BOTICA 214 EDP GOLD/GARD 75ml V2",11,1278.35,913.42,364.93],[47851,"ARBO DES COL FOREST 100ml",1,165.09,67.4,97.69],[47905,"BOTICOLL ACQUA FRESCA DES COL 100ml V2",1,164.9,36.22,128.68],[47908,"DREAM DES COL SPLSH VIAG/ENC 200ml V2",19,1948.92,609.15,1339.77],[47949,"THE BLEND EDP 100ml V2",9,2995.58,1081.37,1914.21],[47950,"ZAAD EDP 95ml V6",8,2360.52,756.42,1604.1],[47962,"BOTI SUN PROT SOL FAC ULT FLD FPS70 40ml",2,154.68,57.18,97.5],[48059,"REF LILY CR H DES ACET CPO LOVE 250g V2",1,70.59,39.4,31.19],[48060,"LILY CREM DES HID ACET CPO 250g V8",19,2263.44,716.58,1546.86],[48062,"REF LILY CR ACET DES HID CPO 250g V2",28,2201.75,1087.52,1114.23],[48130,"MALBEC DES COL 100ml V5",3,530.94,200.7,330.24],[48136,"FLORATTA DES COL F/SECRET 75ml V2",31,2903.99,1944.32,959.67],[48139,"COFFEE DES COL WOMAN SEDUC 100ml V5",13,2245.42,642.57,1602.85],[48141,"ACCORDES DES COL 80ml V5",7,1461.01,601.79,859.22],[48143,"ELYSEE EDP BLANC 50ml V2",2,529.93,193.83,336.1],[48144,"INSENSATEZ DES COL 100ml V3",4,416.36,231.6,184.76],[48145,"BOTICOLL ANNI DES COL 100ml V2",7,698.56,368.9,329.66],[48146,"ELYSEE EDP NUIT 50ml V2",2,457.09,265.6,191.49],[48181,"LILY OL PERF DES CPO 150ml V11",3,243.69,106.89,136.8],[48280,"NSPA DES COL BDY SPLSH AMEI/NEG 200ml V2",9,856.73,346.5,510.23],[48281,"NSPA LOC DES HID CPO AMEI/NEG 400ml V3",37,2269.72,1259.89,1009.83],[48282,"NSPA LOC DES HID CPO AMEI 400ml V6",26,1793.87,891.28,902.59],[48287,"NSPA CR ANTIS MAO FPS 15 QUINOA 75g V2",1,36.9,25.31,11.59],[48288,"NSPA SHAMP AMEI 300ml V2",1,33.35,23.37,9.98],[48290,"NSPA DES COL BDY SPLSH AMEI 200ml V2",12,927.7,461.34,466.36],[48296,"FLORATTA DES COL ROSE BOUQUET 75ml",17,2466.33,506.43,1959.9],[48298,"FLORATTA DES COL ROSE BOUQUET PRM 10ml",40,0.4,254.4,-254.0],[48307,"FLORATTA DES COL F/SECRET V3 75ml",18,1447.85,1128.24,319.61],[48310,"FLORATTA DES COL BLUE V2 75ml",2,319.43,125.94,193.49],[48313,"FLORATTA DES COL ROSE V4 75ml",7,865.06,119.96,745.1],[48352,"BOTICOLL ACQUA FRESCA DES COL 200ml V2",1,205.07,37.81,167.26],[48361,"BOTICOLL ANNI DES COL 200ml V2",2,249.55,161.56,87.99],[48365,"COFFEE DES COL MAN SEDUC 100ml V4",3,537.08,249.18,287.9],[48375,"ELYSEE CR DES HID ACET CPO BLANC 250g V2",2,212.88,90.72,122.16],[48381,"MALBEC DES ANTIT ROLL 55ml V9",7,206.04,60.94,145.1],[48513,"LILY SAB LIQ CPO 250ml",2,111.11,32.88,78.23],[48573,"EGEO DES COL DOLCE COLORS 90ml V2",7,523.32,322.07,201.25],[48621,"FLORATTA EDP FLEUR D ECLIPSE 75ml",1,219.9,90.59,129.31],[48634,"DREAM DES COL SPLSH AMOR NO AR 200ml V2",20,1972.36,614.29,1358.07],[48635,"FLORATTA DES COL ROSE 75ml V3",17,1723.65,472.09,1251.56],[48646,"FLORATTA CR DES HID CPO ROSE 200ml V5",5,249.66,68.2,181.46],[48653,"ELYSEE DES ANTIT AEROSSOL 75g V3",5,155.9,80.2,75.7],[48664,"BOTICOLL PORTINARI DES COL 100ml V5",10,1645.24,427.2,1218.04],[48672,"NSPA LOC DES HID CPO AMEI/NEG",10,294.7,116.5,178.2],[48673,"200ml V4 NSPA LOC DES HID CPO AMEI 200ml V5",2,118.79,51.26,67.53],[48676,"REF NSPA LOC DES HID CPO AMEI 400ml V2",10,538.21,268.2,270.01],[48696,"LILY DES ANTIT AEROSSOL 75g V9",7,235.59,90.06,145.53],[48761,"EGEO DES ANTIT AER RED 75g V3",2,53.77,23.56,30.21],[48768,"NSPA CR HID MAO AMEI 75g V5",1,43.24,24.17,19.07],[48771,"NSPA LOC HID CPO QUINOA 200ml V2",3,178.25,74.8,103.45],[48779,"BOTICOLL PORTINARI DES BDY SPR 100ml V7",11,527.87,242.07,285.8],[48784,"ZAAD DES ANTIT AER 75g V7",4,143.44,45.9,97.54],[48785,"MALBEC DES BDY SPR 100ml V4 PCK",19,848.95,277.77,571.18],[48789,"THE BLEND DES ANTIT AER 75g/125ml V3",6,130.95,106.38,24.57],[48790,"REFIL MALBEC DES BDY SPR REG 100ml PK V5",1,32.0,17.24,14.76],[48977,"INTENSE BAS LIQ CORRET REB HD C37 24g V2",1,45.9,30.28,15.62],[48982,"INTENSE BAS LIQ CORRET REB HD C30 24g V2",1,72.9,30.28,42.62],[48997,"NSPA OL DES HID CPO AMEI 200ml V3",6,389.86,126.12,263.74],[48999,"NSPA OL DES HID CPO AMEI/NEG 200ml V3",5,337.04,204.4,132.64],[49025,"FLORATTA DES BDY SPR ROSE 100ml V8",15,593.21,183.36,409.85],[49039,"ZAAD DES COL BDY SPLSH 200ml",16,1328.38,518.5,809.88],[49048,"CBEM CREM HID P/MAOS NUVEM V4 45g",2,52.27,31.0,21.27],[49150,"MATCH SPR CAP MULTIBENEFICIOS V2 150ml",3,185.01,31.32,153.69],[49154,"COFFEE DES COL UNIQ WOM FL/GOURM 100ml",7,1354.61,329.85,1024.76],[49193,"COFFEE DES COL UNIQ MAN FOUG/OR 100ml",9,1723.08,450.97,1272.11],[49228,"COFFEE DES COL MAN FOUG/ORIENT PRM 10ml",3,47.86,21.09,26.77],[49267,"COFFEE CREM DES HID W/SEDUC 75ml",8,220.68,52.32,168.36],[49353,"BOTICA 214 EDP PEON/APRCT 75ml V2",1,219.99,49.2,170.79],[49379,"MATCH ACIDIFICANTE 100ml",1,67.9,26.77,41.13],[49403,"BOTIK SRUM ALT/POT RETINOL PURO 15ml",2,254.09,128.19,125.9],[49418,"NSPA OL DES HID CPO QUIN/AMEN 200ml V3",2,137.66,81.64,56.02],[49680,"LILY DES COL LEAU DE LILY SOLEIL 75ml",6,1109.32,482.04,627.28],[49765,"UOMINI DES COL V6 100ml",12,1665.79,702.02,963.77],[49766,"UOMINI DES COL BLACK V6 100ml",18,2130.76,1220.49,910.27],[49812,"EGEO DES COL ORIGNL 90ml V2",25,2179.37,1378.44,800.93],[49878,"CBEM LOC DES HID CPO BOA NOITE V2 400ml",3,180.64,80.01,100.63],[49880,"CBEM LOC DES HID CPO BOA NOITE V2 200ml",3,146.1,26.85,119.25],[49887,"REF CBEM LOC DES HID CPO NUVEM V3 350ml",2,116.57,22.28,94.29],[49888,"CBEM LOC DES HID CPO NUVEM V3 400ml",5,359.61,133.2,226.41],[49890,"CBEM LOC DES HID CPO NUVEM V3 200ml",14,491.9,156.83,335.07],[49893,"CBEM LOC DES HID CPO ROS/ALG V3 400ml",3,216.87,55.67,161.2],[49896,"CBEM LOC DES HID CPO ROS/ALG V3 200ml",16,656.65,152.48,504.17],[49903,"CBEM LOC DES HID CPO PESSEGURA V2 200ml",20,756.97,176.81,580.16],[49944,"REF CBEM LOC DES H CPO PESSEGUR V2 350ml",2,119.8,20.74,99.06],[49945,"REF CBEM LOC DES H CPO ROS/ALG V3 350ml",6,251.74,60.05,191.69],[49954,"NSPA LOC DES HID FIRM QUINOA 400ml V2",3,239.47,102.72,136.75],[49957,"REF NSPA LOC DES HID CPO ORQ NOIRE 350ml",5,268.74,64.24,204.5],[49958,"NSPA LOC DES HID CPO ORQ NOIRE 400ml",3,166.9,102.75,64.15],[49959,"NSPA LOC DES HID CPO ORQ NOIRE 200ml",5,91.34,61.03,30.31],[49960,"NSPA DES COL BDY SPLSH ORQ NOIRE 200ml",2,197.34,77.36,119.98],[49963,"NSPA SAB ESF CPO ORQ NOIRE 175ml",1,33.87,19.92,13.95],[49970,"FLORATTA DES COL BDY SPLSH RED 200ml",2,195.8,73.3,122.5],[50022,"HER CODE EDP 50ml",9,1967.13,612.04,1355.09],[50449,"INTENSE HID LAB BY CUID CER/L CER/V 6,2g",2,67.12,31.78,35.34],[50651,"ARBO DES COL INT 100ml",5,687.31,183.2,504.11],[50662,"QUASAR DES COL VISION 100ml",8,752.79,268.4,484.39],[50677,"CLASH DES COL 100ml",28,3900.01,1032.88,2867.13],[50678,"REF CLASH DES COL 100ml",2,239.8,102.46,137.34],[50704,"MAKE B BLUSH PO C/A POLIG BERRY 5,5g",2,170.81,47.64,123.17],[50732,"UOMINI DES COL SPIRIT 100ml",13,1439.12,708.2,730.92],[50756,"MAKE B MASC CILIO POSTICOS PRETA 10g V3",2,134.43,86.1,48.33],[50831,"QUASAR DES COL ICE V2 100ml",5,448.94,158.75,290.19],[50879,"CBEM SAB BARRA PESSEGURA V2 4x80g",39,1074.05,498.79,575.26],[50881,"CBEM DES COL BDY SPLSH DELEITE V3 200ml",31,2767.71,709.62,2058.09],[50882,"CBEM SAB BARRA BOA NOITE V2 4x80g",3,62.08,38.46,23.62],[50956,"CLASH DES BDY SPR 100ml",20,813.4,298.11,515.29],[51123,"CBEM DES COL BDY SPLSH BOA NOIT V2 200ml",9,667.04,312.18,354.86],[51124,"CBEM SAB BARRA BOA NOITE V2 2x80g",11,190.05,79.47,110.58],[51130,"CBEM DES COL BDY SPLSH BEIJINHO V2 200ml",14,987.77,277.68,710.09],[51147,"CBEM DES COL BDY SPLSH NUVEM V3 200ml",12,923.08,217.28,705.8],[51163,"CBEM DES COL BDY SPLSH R/ALG V3 200ml",12,981.54,305.12,676.42],[51164,"CBEM DES ANTIT CR R/ALG V3 80g",3,96.19,30.21,65.98],[51165,"CBEM SAB BARRA ROSA/ALGODAO 4x80g",20,592.26,256.28,335.98],[51166,"CBEM SAB BARRA ROSA/ALGODAO V8 2x80g",16,353.04,113.6,239.44],[51167,"CBEM DES ANTIT CREM S/PERF V2 80g",3,103.8,34.68,69.12],[51168,"CBEM SAB LIQ INT CER LIVRE V2 200ml",6,267.45,78.03,189.42],[51173,"MAKE B GLOS LAB C/AC POLIG ROS/LOVER 5ml",2,125.9,30.9,95.0],[51174,"MAKE B BAT LIQ MAT C/AC POLIG W/CASH 5ml",1,63.19,15.24,47.95],[51180,"MAKE B GLOS LAB C/AC POLIG CRYST/ICO 5ml",1,61.93,25.02,36.91],[51213,"ACCORDES DES COL HARMONIA 80ml V4",3,353.51,257.73,95.78],[51217,"QUASAR GEL POS BARBA BLUE V8 110g",1,64.88,9.85,55.03],[51225,"BOTICOLL SAB BARR CPO PERF 5x80g V2",9,377.82,174.23,203.59],[51226,"CBEM SAB BARRA NUVEM V5 2x80g",9,191.65,62.07,129.58],[51227,"CBEM SAB BARRA NUVEM 4x80g",12,395.78,161.99,233.79],[51229,"CBEM DES ANTIT ROLL ON R/ALG V3 55ml",4,98.17,38.7,59.47],[51236,"CBEM DES COL BDY SPLSH PESSEGUR V2 200ml",21,1673.61,547.69,1125.92],[51239,"CBEM DES COL BDY SPLSH CER/LIV V2 200ml",5,345.62,173.1,172.52],[51242,"QUASAR DES COL BRAVE V2 100ml",13,1202.79,837.98,364.81],[51243,"QUASAR DES COL CLASSIC 100ml",3,397.32,192.42,204.9],[51244,"QUASAR DES COL BLUE V4 100ml",21,2035.3,1410.93,624.37],[51262,"QUASAR DES COL FIRE V2 100ml",5,481.04,320.9,160.14],[51269,"MAKE B BAS LIQ C/ GLYC TX 210 30g",1,113.21,44.12,69.09],[51271,"MAKE B BAS LIQ C/ GLYC TX 190 30g",2,249.8,88.2,161.6],[51275,"MAKE B BAS LIQ C/ GLYC TX 180 30g",2,199.31,49.32,149.99],[51276,"MAKE B BAS LIQ C/ GLYC TX 230 30g",1,124.9,44.12,80.78],[51279,"MAKE B BAS LIQ C/ GLYC TX 140 30g",1,124.9,45.34,79.56],[51280,"MAKE B BAS LIQ C/ GLYC TX 220 30g",1,104.11,44.12,59.99],[51395,"BOTICA 214 EDP FIJI PAR FL ESPEC 90ml",10,1333.66,976.1,357.56],[51402,"BOTICA 214 DES ANT AER FIJ P/FG/ES 125ml",2,75.81,22.88,52.93],[51436,"DR BOTICA SAB BARRA POC/CORAG 3x80g V2",4,165.98,60.04,105.94],[51441,"DR BOTICA COL POCAO FORCA 120ml V2",6,528.66,130.87,397.79],[51448,"FLORATTA DES COL GOLD 75ml V2",5,749.06,154.4,594.66],[51466,"BOTIK MULTIPR FAC FPS50 VITAM C 40g",1,56.94,19.45,37.49],[51468,"BOTIK CR HID FAC ANTIOX VITAM C V2 50g",1,85.88,25.2,60.68],[51470,"BOTIK GEL LIMP FAC VITAM C 200g",13,655.54,165.93,489.61],[51473,"ESTJ BOTIK VITAMINA C",3,214.31,211.68,2.63],[51500,"SOPHIE COL CANDY 100ml V2",5,464.45,111.18,353.27],[51521,"DR BOTICA COL POCAO/CORAG 120ml V2",6,509.46,98.54,410.92],[51581,"FLORATTA DES BDY SPR S/LOVE 100ml V2",4,151.72,31.52,120.2],[51801,"BOTI BABY SAB LIQ GLIC V2 200ml",16,632.88,180.48,452.4],[51802,"BOTI BABY COL SOL V2 100ml",20,1509.4,518.33,991.07],[51803,"BOTI BABY COND V2 400ml",4,217.98,108.28,109.7],[51805,"BOTI BABY CR REPAR 30ml",1,46.05,12.07,33.98],[51808,"BOTI BABY COND V2 200ml",2,73.57,30.96,42.61],[51869,"NSPA OL DES HID CPO ORQ NOIRE 200ml",1,94.9,35.44,59.46],[52008,"NSPA LOC RAD DES HID CPO AMEI DOUR 200ml",1,35.92,11.31,24.61],[52016,"NSPA CREM HID MAOS AMEI DOUR 75g",1,39.23,24.65,14.58],[52018,"BOTI BABY SHAMP V2 400ml",9,466.6,149.62,316.98],[52019,"BOTI BABY SHAMP V2 200ml",3,104.69,47.22,57.47],[52022,"BOTI BABY LOC HID CPO 200ml",8,435.16,124.6,310.56],[52023,"BOTI BABY LOC HID CPO 400ml",2,146.84,38.02,108.82],[52024,"REF BOTI BABY SAB LIQ GLIC 350ml",3,142.29,28.77,113.52],[52025,"BOTI BABY SAB LIQ GLIC V2 400ml",3,167.23,54.51,112.72],[52029,"BOTICOLL PORTINARI D/COL ABSOLUTO 100ml",8,779.33,585.2,194.13],[52034,"NSPA SAB BARRA AMEIXA DOURADA 2x90g",2,44.28,20.94,23.34],[52040,"REF BOTI BABY LOC HID CPO 350ml",1,70.64,12.1,58.54],[52044,"CELEBRE DES COL FEM AGORA 100ml",4,376.02,160.76,215.26],[52052,"CELEBRE DES COL MASC AGORA 100ml",5,509.43,200.95,308.48],[52122,"DR BOTICA SHAMP POC/ESPUM LISOS 400ml",2,92.93,52.22,40.71],[52147,"DR BOTICA CR PENT POC/TR/NO CACHOS 350ml",2,111.8,53.5,58.3],[52148,"INTENSE BAT CREM 420 V2 3,8g",1,34.9,14.09,20.81],[52155,"INTENSE BAT CREM 120 V4 3,8g",5,78.83,31.05,47.78],[52164,"DR BOTICA CR PENT POC/TR/NO CRESP 350ml",2,131.8,53.54,78.26],[52175,"DR BOTICA SAB LIQ CPO POC/BOLHAS 400ml",1,69.9,15.16,54.74],[52342,"BOTI SUN PROT SOL CPO FPS70 200g",1,119.9,30.27,89.63],[52468,"BOTIK GEL LIM FAC MIC AC MAN/SAL 50g PRM",192,2863.85,0.0,2863.85],[52589,"REF ELYSEE CR DES HID ACET CP BLANC 200g",2,169.1,76.26,92.84],[52618,"MAKE B MASC CIL VOL EXTRM PRETA V2 10g",1,74.71,33.43,41.28],[52619,"MAKE B MASC CIL SCANDAL L C/OL COCO 10g",1,51.21,23.67,27.54],[52638,"MAKE B MASC CILIO 4K PANORAMIC 10g V2",4,348.29,154.68,193.61],[52671,"FLORATTA CR DES HID CPO ROSE 75g",3,62.37,48.96,13.41],[52752,"GLAMOUR DES COL SCRT BLACK INTENSE 75ml",3,483.73,129.78,353.95],[52816,"INTENSE BRLH LAB INCOLOR 5ml",1,23.76,21.47,2.29],[52867,"MAKE B GLOS LAB C/AC POLIGL N/ROSE 5ml",2,131.8,49.88,81.92],[52898,"ARBO DES COL PURO 100ml",4,579.78,152.12,427.66],[53159,"ESTJ DR BOTICA POCAO DA AVENTURA V2",3,301.7,133.14,168.56],[53346,"NSPA LOC DES HID CPO LILAC 400ml",9,545.21,184.77,360.44],[53353,"NSPA DES COL BDY SPLSH LILAC 200ml",10,719.73,224.74,494.99],[53386,"BOTIK PROT SOL FAC FPS 80 AC/HIAL 40ml",5,457.02,132.17,324.85],[53388,"NSPA SAB LIQ PERF AMEIXA 250ml",3,160.0,60.48,99.52],[53389,"NSPA SAB LIQ PERF AMEIXA NEGRA 250ml",4,134.3,80.64,53.66],[53392,"NSPA SAB LIQ PERF ORQUIDEA NOIRE 250ml",3,106.44,60.48,45.96],[53415,"LIZ DES COL INTENSO 100ml",5,588.56,171.55,417.01],[53460,"DR BOTICA COL POC/AMIZ V2 120ml",2,193.8,77.24,116.56],[53508,"CBEM LOC DES HID CPO SHOW BNH V2 400ml",2,102.91,53.34,49.57],[53511,"CBEM DES COL BDY SPLSH SHOW/BNH V2 200ml",12,812.42,353.52,458.9],[53513,"CBEM SAB BARRA SHOW BANHO V2 4x80g",8,246.68,101.2,145.48],[53515,"CBEM SAB BARRA SHOW BANHO V2 2x80g",2,25.99,15.72,10.27],[53518,"ELYSEE EDP V2 50ml",3,836.48,180.78,655.7],[53680,"QUASAR DES ROLL BLUE V10 55ml",2,59.8,13.04,46.76],[53686,"CBEM LOC DES HID CPO FEIRA BANANA 400ml",1,33.65,17.26,16.39],[53792,"CBEM SAB BARRA FEIRA SORTIDO 4x80g",3,102.28,38.13,64.15],[53835,"HER CODE LOC DES HID CPO 200ml",14,700.74,224.3,476.44],[53838,"BOTIK PROT SOL FAC FPS 50 AC/HIAL 40ml",4,239.47,93.45,146.02],[53921,"DR BOTICA COL POC/CORAC V2 120ml",7,635.82,272.26,363.56],[53927,"MALBEC DES ANTIT AER MAGNET V3 75g",3,79.05,53.07,25.98],[53929,"MALBEC DES ANTIT AER GOLD V3 75g",1,39.9,17.69,22.21],[53934,"BOTICOLL PORTINARI DES ANTIT AER V8 75g",1,31.9,17.48,14.42],[53935,"FLORATTA DES ROLL BLUE V7 55ml",1,29.9,6.34,23.56],[54101,"MALBEC DES COL X V2 100ml",5,1073.13,242.3,830.83],[54150,"MALBEC DES COL ICON 100ml",7,1293.29,494.27,799.02],[54154,"MALBEC DES ANTIT AER ICON 125ml",3,115.71,35.52,80.19],[54335,"GLAMOUR SEC BL NECESS ROSA ALC PU NAT/23",2,29.45,22.04,7.41],[54457,"ZAAD EDP VENTURE 95ml",1,279.16,132.21,146.95],[54658,"BOTICA 214 EDP AFRIC/SUNR FOUG/AMAD 90ml",2,413.88,94.32,319.56],[54802,"CBEM GEL/LIMP FAC FEIRA TANGERINA 150g",4,129.67,26.12,103.55],[54879,"ESTJ BOTI BABY NINHO V2",2,101.0,40.7,60.3],[54887,"ESTJ BOTI BABY CASCA V2",3,335.38,123.31,212.07],[55064,"INTENSE BALM MULTIF FEIRA BANANA 6,2g",3,80.81,48.66,32.15],[55083,"NEXT COLONIA 75ml",12,1152.74,388.57,764.17],[55104,"CBEM SHAMP FEIRA VINAGRE FRAMBOESA 230ml",3,64.2,34.08,30.12],[55105,"CBEM CREM PENT FEIRA BABOSA 200ml",1,33.92,15.08,18.84],[55194,"NEXT SHAMP REFRESC CAB/CPO 230ml",1,38.88,13.05,25.83],[55221,"DR BOTICA COL POC/CRIATIV 120ml",3,273.28,95.85,177.43],[55243,"DR BOTICA SHAMP POC/ESPUM CRESPOS 400ml",1,59.9,26.11,33.79],[55253,"NEXT DESODORANTE CREME 80g",3,84.71,37.98,46.73],[55363,"LILY EDP GARDENIA 75ml",1,236.25,121.74,114.51],[55366,"ARBO DES COL ATLANTICA 100ml",4,523.05,156.56,366.49],[55374,"ARBO DES COL ATLANTICA PRM 10ML",1,15.17,6.52,8.65],[55407,"BOTIK CR NUTR FIRM ROS/PESC RESV/SIL 40g",1,169.51,49.23,120.28],[55426,"CBEM CREM HID P/MAOS ROS/ALG V5 45g",2,64.13,31.0,33.13],[55427,"CBEM CREM HID P/MAOS DELEITE V3 45g",3,92.17,21.18,70.99],[55505,"MAKE B LAP/OLH ULTRABLACK PRETO V2 1,2g",2,122.99,26.58,96.41],[55642,"PMPCK ARBO DES ANT AER 2x75g/125ml",1,59.85,23.32,36.53],[55651,"MEN DES COL NBA PRM 10ml",3,41.17,13.38,27.79],[55659,"FLORATTA DES COL ROMANC/VERAO 75ml",8,740.25,242.96,497.29],[55707,"NSPA LOC DES HID CPO LILAC 180ml",8,0.08,114.4,-114.32],[56025,"MEN SHW GEL CAB/CPO V5 205g",12,405.01,77.16,327.85],[56027,"MEN SAB BARRA 2x90g",15,350.18,116.25,233.93],[56217,"CBEM SPRAY INTIMO REFRESC CER/LIV 75ml",2,91.51,26.18,61.99],[56385,"COFFEE DES COL WOMAN ADDICTIVE 100ml",1,157.74,83.08,74.66],[56402,"COFFEE DES COL MAN ADDICTIVE 100ml",2,177.74,166.16,11.58],[56592,"BOTI NECESS FEM PREMIUM LONA",7,135.8,163.99,-33.15],[56686,"KIT DR BOTICA MAGICO TEATRO BONECOS",1,157.9,68.1,89.8],[56796,"MATCH SHAMP SCIENCE PRE/POS QUIM 300ml",4,149.24,63.91,85.33],[56797,"MATCH COND SCIENCE PRE/POS QUIM 280ml",3,124.02,52.17,71.85],[56799,"MATCH QUERATINA CONCENTRADA LAB 50ml",1,37.95,7.38,30.57],[56805,"MATCH COND SCIENCE RECONSTRUCAO 280ml",3,107.47,64.47,43.0],[56809,"MATCH SHAMP SCIENCE CRESCIMENTO 300ml",7,273.46,150.01,123.45],[56810,"MATCH COND SCIENCE CRESCIMENTO V2 280ml",6,252.97,128.94,124.03],[56811,"MATCH MASC CAP SCIENCE CRESC V2 250g",7,381.92,164.54,217.38],[56812,"MATCH TON CAP SCIENCE CRESC V2 65ml",2,108.68,31.32,77.36],[56819,"MATCH SHAMP SCIENCE RECONSTRUCAO 300ml",4,144.33,85.72,58.61],[57042,"CBEM LOC DES HID CPO PESSEGUR/GOST 400ml",2,136.78,40.46,96.32],[57043,"CBEM CR DES HID CPO PESSEGUR/DEPIL 200ml",2,109.8,31.26,78.54],[57046,"CBEM CR ESF CPO PESSEGUR/DEPIL 200g",1,70.92,19.25,51.67],[57088,"EGEO SHW GEL CAB/CPO BLUE V2 100g",1,18.37,10.79,7.58],[57091,"CBEM SHAMP FEIRA VINAGRE/MACA V2 230ml",1,22.36,0.0,22.36],[57207,"AU MIGOS PETS SHAMP 5/1 ADULTOS 400ml",1,47.9,24.85,23.05],[57639,"BOTI NECESS PREMIUM MASC NYLON",8,90.29,180.78,-90.49],[57641,"BOTI NECESSAIRE VIAGEM NYLON",5,220.77,113.25,107.52],[57749,"BOT SUN PR FAC C/C FPS70 A/F COR 02 40ml",3,203.02,47.22,155.8],[57753,"MAKE B ESPNJ FAC SUPER BLEND PU",2,73.38,39.58,33.8],[57758,"BOT SUN PR FAC C/C FPS70 A/F COR 03 40ml",2,106.21,57.18,49.03],[57759,"BOT SUN PR FAC C/C FPS70 A/F COR 04 40ml",3,239.7,61.24,178.46],[57830,"REF NSPA LOC DES AVEL CP CER/ROUGE 350ml",1,54.01,27.62,26.39],[57833,"NSPA SAB LIQ PERF CPO CER/ROUGE 250ml",1,40.9,20.17,20.73],[57882,"LILY DES BDY SPR LEAU/LILY BLANC 100ml",6,231.27,62.64,168.63],[58123,"BOTICARIO NECESSAIRE NYLON",4,62.96,60.4,2.56],[58132,"CBEM D/COL BDY SPLSH DEL/CHOCOLAT 200ml",1,79.51,21.25,58.26],[58139,"BOTI NECESS MINI ALG",4,77.02,37.48,36.73],[58231,"CBEM SAB BARR DEL ESPECIAL 120g",6,62.5,39.6,22.9],[58239,"CBEM SAB BARRA NUV/ALEGRIA 4x80g",3,104.95,37.95,67.0],[58318,"PMPCK MEN DES ANTIT AER COOL/PROT 2x90g",1,56.85,18.31,38.54],[58357,"CBEM SAB BARRA PESSEGUR/GOST 4x80g",11,309.45,127.31,182.14],[58363,"CBEM D/COL BDY SPLSH NUV/ALEG 200ml",1,92.9,19.85,73.05],[58373,"FLORATTA DES COL RED BLOSSOM V2 75ml",15,1769.07,388.5,1380.57],[58506,"MALBEC DES COL PURE GOLD 100ml",11,2578.4,693.79,1884.61],[58526,"QUASAR DES COL DEEP BLUE 100ml",1,166.16,67.14,99.02],[58527,"QUASAR DES BDY SPR DEEP BLUE 100ml",6,194.92,52.32,142.6],[58622,"MAKE B CORRET LIQ FAC EFFECT 15 V2 5,7ml",2,115.14,42.18,72.96],[58624,"MAKE B CORRET LIQ FAC EFFECT 20 V2 5,7ml",2,89.0,42.18,46.82],[58627,"MAKE B CORRET LIQ FAC EFFECT 30 V2 5,7ml",2,131.14,42.18,88.96],[58644,"ZAAD EDP INTENSE 95ml",7,2162.08,565.11,1596.97],[58729,"BOTICA 214 EDP SEV/DOR FOUG/AROM 90ml",4,792.93,185.16,607.77],[58733,"BOTICA 214 EDP SEV/DOR FLOR/FRUT 75ml",2,384.79,190.12,194.67],[58813,"MAKE B BALM LAB NIGH/PLUMP LIP/CHRO 3,6g",1,62.91,29.11,33.8],[58930,"ESTJ MA CHERIE 24",3,333.79,288.42,45.37],[58978,"NSPA LOC NUTR DES CPO UVA MERLOT 400ml",2,144.21,68.54,75.67],[58980,"REF NSPA LOC DES HID CP UVA MERLOT 350ml",2,122.71,55.24,67.47],[58983,"MAKE B BASE LIQ RETIN 3 H 170Q 26g",1,149.96,64.25,85.71],[58984,"NSPA LOC DES HID CPO UVA MERLOT 180ml",1,50.08,11.31,38.77],[58985,"NSPA SAB LIQ CPO PERF UVA MERLOT 250ml",3,40.24,60.48,-20.24],[58989,"NSPA LOC DES HID CPO UVA MERLOT PRM 50ml",17,46.44,79.56,-33.12],[58993,"MAKE B BASE LIQ RETIN 3 H 260N 26g",1,148.06,64.25,83.81],[59039,"MAKE B CORRET LIQ RETIN 3 H 100F 5,5ml",2,164.05,47.56,116.49],[59052,"MAKE B BAT LIQ RETIN 3 H PINK/HIBISC 6ml",1,60.67,35.44,25.23],[59132,"BOTI BABY COL LUA RPCK 100ml",10,778.06,254.24,523.82],[59161,"ZAAD EDP INTENSE PRM 10ml",11,27.96,72.27,-44.31],[59176,"BOTIK GEL CONC LIMP FAC AC/GLIC V2 150g",1,56.15,23.66,32.49],[59306,"FLORATTA EDP RED PASSION 75ml",7,1433.62,634.13,799.49],[59309,"FLORATTA EDP RED PASSION PRM 10ml",3,42.65,24.48,18.17],[59436,"EGEO DES COL CHOC HIGH 90ml",1,79.36,58.22,21.14],[59438,"EGEO DES COL CHOC HIGH 10ml PRM",20,63.93,121.8,-57.87],[59466,"LIZ DES COL FLORA 100ml",2,287.81,122.72,165.09],[59516,"REF NSPA LOC DES HID CPO AMEI/NEG 350ml",15,784.32,282.09,502.23],[59517,"REF NSPA LOC DES HID CPO AMEIXA 350ml",3,176.9,31.41,145.49],[59555,"HER CODE EDP TOUCH 50ml",2,394.28,109.59,284.69],[59577,"MATCH MASC CAP NUTR PROFUNDA V2 250g",6,295.1,160.88,134.22],[59581,"MATCH MASC CAP NUTR/REGEN V2 250g",2,101.01,14.52,86.49],[59582,"MATCH COND NUTRICAO REGEN V2 280ml",3,125.41,61.68,63.73],[59583,"MATCH SHAMP NUTR/REGEN V2 300ml",5,200.35,102.29,98.06],[59823,"NSPA CR PERF DES CPO ORQ/LUMIER 400ml",5,356.21,171.25,184.96],[59824,"REF NSPA CR PERF DES CPO ORQ/LUM 350ml",3,203.7,82.8,120.9],[59829,"NSPA CR PERF DES CPO ORQ/LUMIER 180ml",3,179.7,70.8,108.9],[59830,"NSPA SAB LIQ PERF CPO ORQ/LUMIER 250ml",2,115.8,40.3,75.5],[59845,"BOTI BABY LOC CPO BNH/POS BNH LUA 200ml",3,146.9,76.32,70.58],[59873,"BOTIK GEL LIMP FAC CIC/PANT/CER 200g",9,530.38,124.8,405.58],[59875,"BOTIK AGUA MICLR FAC CIC/PANT/CER 200ml",1,64.97,13.3,51.67],[59876,"BOTIK CR MULTIREP FAC CIC/PANT/CER 30g",3,131.53,50.88,80.65],[59877,"BOTIK CR MULTR FAC CIC/PANT/CER PRM 10g",16,16.81,78.11,-61.3],[59957,"BOTI BABY ESPUM BANHO LUA 150ml",1,43.92,10.96,32.96],[70112,"BOTICA 214 LC D/HD SEV/DOR AMOR/25 200ml",1,57.09,11.19,45.9],[70668,"SOPHIE COL HELLO 100ml",7,697.02,303.38,393.64],[70669,"SOPHIE COL LIKE 100ml",9,911.49,322.92,588.57],[70683,"DR BOTICA SAB BARRA TRIO BNH CORAC 3x80g",3,120.77,41.07,79.7],[70693,"SOPHIE LOC HID CPO 200ml",3,144.25,38.4,105.85],[71500,"MAKE B LAP RETR P/OLH MARR PCK V2",1,41.94,24.65,17.29],[71807,"FLORATTA CREM HID DES CPO GOLD 200ml V4",3,144.4,67.17,77.23],[71877,"BOTICOLL CRAZY DES COL FEELINGS 100ml",2,283.12,80.64,202.48],[72052,"EGEO MOUS CREM HID DES CPO D MER 250g V6",3,193.66,73.2,120.46],[73367,"EGEO DES BDY SPR BLUE 100ml V2 PCK",14,620.15,184.84,435.31],[73613,"COFFEE DES COL DUO WOMAN 100ml",12,1816.66,692.52,1124.14],[73614,"COFFEE DES COL DUO MAN 100ml",6,1184.05,342.82,841.23],[73831,"EGEO CREM DES HID CPO DOLCE 100ml",4,133.52,39.86,93.66],[73869,"MAKE B MASC CILIOS VOL EXTREMO PRM 5g",1,36.4,8.11,28.29],[74029,"COFFEE DES COL MAN 100ml V3",11,1715.09,450.23,1264.86],[74031,"COFFEE DES COL WOMAN 100ml V3",1,192.9,82.67,110.23],[74043,"LINDA DES COL V4 100ml",50,5689.75,1833.04,3856.71],[74055,"GLAMOUR DES COL MYRIAD 75ml V2",23,1958.64,1480.05,478.59],[74096,"GLAMOUR DES COL 75ml V6",9,1158.09,319.37,838.72],[74103,"GLAMOUR DES COL SEC BL 75ml V4",5,764.18,357.15,407.03],[74438,"ARBO DES COL 100ml V4",43,5954.56,2898.63,3055.93],[74444,"ARBO DES COL BOTANIC 100ml V2 RPCK",4,331.99,304.6,27.39],[74722,"LILY EDP 30ML V2",3,554.7,226.74,327.96],[74740,"GLAMOUR LOC DES HID CPO 200ml V2",6,297.19,81.36,215.83],[74893,"EGEO DES BDY SPR DOLCE 100ml V8 PCK",13,537.99,115.83,422.16],[74965,"MALBEC LOC DES HID CPO RPCK 200ml",4,249.27,85.86,163.41],[75049,"INTENSE PALETTE ROSE MULTIF 1 13,2g",2,172.62,105.08,67.54],[75627,"INTENSE PO COMPACTO FACIAL 20 5g",2,118.92,39.85,79.07],[75628,"INTENSE PO COMPACTO FACIAL 30 5g",2,107.37,57.23,50.14],[75629,"INTENSE PO COMPACTO FACIAL 40 5g",3,132.69,85.84,46.85],[75742,"MAKE B BAS PO MINERAL 10 5,5G",1,129.9,47.87,82.03],[75754,"MAKE B BAS PO MINERAL 20 5,5G",2,236.34,77.81,158.53],[75777,"MAKE B SOL SOBRANC UP/BR ESC 6,9g",1,68.61,34.23,34.38],[75792,"FLORATTA DES COL RED 75ml",27,3695.55,1693.44,2002.11],[76597,"INTENSE LAP BAT NUDE ROSADO 1,2g",3,44.53,18.96,25.57],[76598,"INTENSE LAP BAT NUDE 1,2g",2,29.91,25.8,4.11],[76601,"INTENSE LAP BAT VINHO 1,2g",3,88.7,32.15,56.55],[76621,"DREAM DES COL CEU/BAUN 200ml",8,764.66,285.06,479.6],[76665,"MEN DES COL ONLY 100ml V2",1,139.9,35.85,104.05],[76666,"MEN DES COL GALBE 100ml V2",6,926.85,202.38,724.47],[76678,"BOTICOLL STYLETTO DES COL 100ml V3",4,328.97,225.96,103.01],[76700,"LIZ DES COL 100ml",14,2049.04,859.04,1190.0],[76719,"MALBEC DES COL BLACK 10ml PRM",1,14.57,0.0,14.57],[76947,"INTENSE ILUM FAC STCK PEROLADO 5,5g",1,51.36,24.05,27.31],[77129,"BOTIK SRM FAC ALT/POT PRENC AC/HIAL 30ml",1,177.12,36.85,140.27],[77131,"BOTIK SRM FAC ALT/POT AC/KOJIC 30ml",1,179.91,74.24,105.67],[77138,"BOTIK CR CON OLH RED/RUG AC/HIAL CAF 15g",2,258.98,73.92,185.06],[77183,"LIZ CREM DES HID CPO 250g",2,149.8,41.64,108.16],[77489,"THE BLEND EDP BOURBON 100ml",2,611.84,292.0,319.84],[77524,"LILY EDP 75ML V2",6,1769.25,730.44,1038.81],[77685,"LILY CREM DES HID ACET CPO ABSOLU 250g",1,135.01,37.88,97.13],[77989,"LILY EDP LUMIERE 75ML",10,2646.06,815.85,1830.21],[77990,"LILY CREM ACET HID DES CPO LUMIERE 250g",5,638.38,188.48,449.9],[78000,"MALBEC DES BDY SPR BLACK 100ml V2 PCK",14,597.28,122.15,475.13],[79997,"GLAMOUR DES ANTIT AER 75g V7",3,115.93,52.35,63.58],[80849,"REF LILY CR AC HID DES CPO LUMIERE 250g",7,546.1,269.22,276.88],[80887,"UOMINI DES BDY SPR 100ml V7 PCK",18,659.17,144.36,514.81],[81108,"GLAMOUR DES COL DIVA 75ml V2",24,2334.84,1088.54,1246.3],[81330,"COFFEE D/C ADD/MAN/ORIENT/AROM V2 100ml",6,973.07,282.24,690.83],[81481,"INTENSE LAPIS P/SOBRANC 2 1,1g",1,22.63,16.2,6.43],[81512,"INTENSE BAT LIQUIDO AQUATINT VERM 5ml",1,42.9,16.59,26.31],[81513,"INTENSE BAT LIQUIDO AQUATINT ROSA 5ml",1,42.9,16.59,26.31],[81602,"MAKE B BAT CREM C/AC POLIG REV BRW 3,6g",4,206.29,97.44,108.85],[81608,"MAKE B BAT CREM C/AC POL NUD MALVA 3,6g",1,42.3,11.87,30.43],[81612,"MAKE B BAT CREM C/AC POL SOFT NUD 3,6g",1,43.71,24.36,19.35],[81613,"MAKE B BAT CREM C/AC POL WATERMELON 3,6g",1,64.9,24.36,40.54],[81614,"MAKE B BAT CREM C/AC POL FASH BERR 3,6g",2,125.65,48.72,76.93],[81618,"MAKE B BAT MATE C/AC POLIGL RED SUPR 4g",2,96.31,48.92,47.39],[81621,"MAKE B BAT MATE C/AC POLIG ORANGE FEV 4g",3,171.11,76.44,94.67],[81623,"MAKE B BAT MATE C/AC POLIGL VIOLET 4g",2,106.8,35.52,71.28],[81624,"MAKE B BAT MATE C/AC POLIGL HOT BROWN 4g",2,112.8,48.92,63.88],[81626,"MAKE B BAT MATE C/AC POLIGL ROS FABUL 4g",3,169.95,65.29,104.66],[81631,"MAKE B BAT GLOSS C/AC POLIGL WINE 3,6g",2,94.21,30.02,64.19],[81756,"LINDA DES COL IRRESISTIVEL 100ml",4,494.95,144.6,350.35],[81849,"LINDA DES COL FELICIDADE V2 100ml",4,692.59,287.76,404.83],[81954,"FLORATTA DES COL SIMPLE LOVE 75ml",2,149.3,126.0,23.3],[82045,"NSPA LOC DES CPO A/STRES JAS/SAMB 400ml",22,54.41,322.46,-268.05],[82250,"REF NSPA LOC DES CPO A/STR JAS/SAM 400ml",4,0.04,58.68,-58.64],[82528,"MAKE B CORRET LIQ FAC EFFECT 10 5,7ml",1,65.05,21.09,43.96],[82531,"MAKE B CORRET LIQ FAC EFFECT 25 5,7ml",1,69.9,21.08,48.82],[82545,"MAKE B BAS LIQ MATE SALICYLIC 210 30g",1,88.84,37.27,51.57],[82685,"EGEO DES COL BOMB BLACK C/CAR 90ml",16,2270.27,722.56,1547.71],[82686,"EGEO DES COL BLUE C/CAR 90ml",18,2179.98,533.49,1646.49],[82688,"EGEO DES COL DOLCE C/CAR 90ml",10,1139.61,574.7,564.91],[82689,"EGEO DES COL CHOC C/CAR 90ml",4,537.59,232.27,305.32],[82690,"EGEO DES COL RED C/CART 90ml",7,943.17,188.16,755.01],[82700,"MATCH SHAMP HIDRATACAO ANTIF 300ml",1,29.37,12.39,16.98],[82701,"MATCH COND HIDRATACAO ANTIF 280ml",3,103.39,61.68,41.71],[82707,"MATCH LEAVE IN NUTR PROF 150ml",3,100.97,63.42,37.55],[82824,"MATCH SHAMP MATIZADOR LOIROS 300ml",1,44.08,20.54,23.54],[82825,"MATCH COND LOIRO REPARADO 280ml",1,45.92,21.69,24.23],[82844,"MATCH SHAMP LISO PROLONGADO 300ml",3,108.86,61.77,47.09],[82845,"MATCH COND LISO PROLONGADO 280ml",2,63.61,41.26,22.35],[82847,"MATCH MASC CAP LISO PROLONGADO 250g",3,155.38,80.76,74.62],[82887,"MATCH SHAMP HIDRATACAO E BRLH 300ml",3,110.95,61.62,49.33],[82888,"MATCH COND HIDRATACAO E BRLH 280ml",3,114.83,61.68,53.15],[83059,"CELEBRE DES COL FOUG AROM FORC 100ml",17,1689.44,683.23,1006.21],[83060,"CELEBRE DES COL FLOR FRUT FORC 100ml",14,1300.69,341.74,958.95],[83065,"LIZ DES ANTIT AER 75g",3,71.82,35.16,36.66],[83356,"FLORATTA DES COL SPLSH ROSE 200ml",1,90.0,36.74,53.26],[83357,"FLORATTA DES COL SPLASH BLUE 200ml",1,67.9,36.74,31.16],[83529,"THE BLEND EDP CARDAMOM 100ml",2,697.15,292.2,404.95],[83550,"BOTIK SRUM ALT/POT RETIN PURO 30ml",1,106.9,40.82,66.08],[83684,"DR BOTICA COL POC/AVENTURA 120ml",11,953.62,310.96,642.66],[83697,"MATCH SHAMP OL CONTROLADA 300ml",2,91.8,41.06,50.74],[83756,"COFFEE DES COL WOMAN LUCKY 100ML",7,747.85,581.56,166.29],[83960,"ARBO DES ANTIT AER 75ml V9",6,204.25,70.14,134.11],[83961,"ARBO DES BDY SPR 100ml V6",10,469.77,152.55,317.22],[83971,"LILY DES COL LEAU DE 75ml",4,704.73,172.14,532.59],[84047,"ESTJ EGEO BLUE REG/21",1,149.9,70.03,79.87],[84049,"ESTJ CBEM OBRIGADA/22",2,87.65,42.2,45.45],[84055,"MALBEC DES BDY SPR VERT 100ml",4,171.43,59.16,112.27],[84056,"FLORATTA DES BDY SPR RED 100ml",4,171.18,60.2,110.98],[84113,"ESTJ FLORATTA BLUE JUMBO REG/21",2,398.71,205.72,192.99],[84182,"LILY DES COL BDY SPLSH 200ml",18,1461.33,553.37,907.96],[84213,"EGEO DES COL VAN VIBE 90ml",2,275.8,114.94,160.86],[84214,"EGEO DES COL SPCY VIBE C/CAR 90ml",34,2931.59,1934.26,997.33],[84224,"GLAMOUR DES COL FEVER 75ml V2",2,308.56,142.36,166.2],[84228,"GLAMOUR DES BDY SPR 100ml V6 PCK",12,435.6,143.07,292.53],[84230,"GLAMOUR LOC DES HID CPO SEC BL 200ml V2",2,108.6,44.8,63.8],[84385,"MALBEC EDP SIGNATURE V3 90ml",2,604.5,278.88,325.62],[84387,"MALBEC DES COL V6 100ml",43,7869.75,3559.54,4310.21],[84388,"MALBEC DES COL NOIR V3 100ml",1,209.72,50.3,159.42],[84390,"MALBEC DES COL MAGNETIC V3 100ml",10,2185.88,619.5,1566.38],[84391,"MALBEC DES COL GOLD V3 100ml",4,753.53,336.17,417.36],[84392,"MALBEC DES COL BLACK V2 100ml",6,1376.69,324.24,1052.45],[84399,"MALBEC DES COL FLAME V2 100ml",1,249.9,95.09,154.81],[84487,"LINDA LOC DES HID CPO IRRESISTIVEL 200ml",2,135.44,17.98,117.46],[85054,"EGEO DES COL DOLCE ILLUSION 90ml",9,1126.35,259.76,866.59],[85056,"EGEO DES COL DOLCE ILLUSION PRM 10ml",87,0.87,93.96,-93.09],[85097,"NSPA OL GLOR DES HID CPO AMEIX/NEG 200ml",1,67.08,40.82,26.26],[85104,"COFFEE SAB LIQ CPO WOMAN SEDUCTION 150ml",3,72.79,22.89,49.9],[85120,"CBEM SAB BARRA DELEITE V4 2x80g",6,105.32,48.02,57.3],[85121,"CBEM CREM HID MAOS DELEITE V4 45g",5,155.77,39.75,116.02],[85124,"CBEM LOC DES HID CPO DELEITE V3 400ml",14,811.33,257.84,553.49],[85324,"CBEM CR HID CPO DEPIL DOC/PESSEGUR 150ml",4,186.6,69.58,110.21],[85419,"NSPA CR PERF DES CPO",4,247.18,64.48,182.7],[85420,"ROS/SECRETAS 400ml NSPA CR PERF DES CPO ROS/SECRETAS 180ml",3,143.7,32.76,110.94],[85452,"NEXT PASTA MODEL CAP 150g",2,110.8,48.68,62.12],[85459,"MALBEC DES COL BLACK LEGEND 100ml",3,620.6,158.19,462.41],[85481,"MALBEC DES COL BLACK LEGEND PRM 10ml",26,120.92,45.92,75.0],[85483,"FLORATTA DES BDY SPRAY RED V2 100ml",25,1008.97,407.97,601.0],[85542,"REF CBEM LOC DES HID CPO DEL V3 350ml",1,57.68,21.48,36.2],[85543,"CBEM LOC DES HID CPO DELEITE V3 200ml",24,1005.0,286.83,718.17],[85547,"CBEM SAB BARRA SORTIDO V2 4x80g",39,1125.84,538.23,587.61],[85564,"CBEM SAB BARRA DELEITE V2 4x80g",9,265.06,115.15,149.91],[85574,"ESTJ CLASH PAIS/25",9,1461.36,520.2,941.16],[85577,"ESTJ EGEO BOMB BLACK PAIS/25",6,841.4,248.95,592.45],[85644,"BOTICA 214 EDP ARAB/OASIS FLOR/FRUT 75ml",3,508.14,125.16,382.98],[85645,"BOTICA 214 EDP ARAB/OASIS FOUG/AMB 90ml",5,903.96,490.4,413.56],[85646,"BOTICA 214 EDP ARAB/OAS FG/AMB PRM 10ml",1,16.52,7.89,8.63],[85647,"BOTICA 214 EDP ARAB/OAS FL/FRUT PRM 10ml",1,16.52,7.84,8.68],[85667,"MAKE B PALETTE BLUSH CHERRY HIT V2 8g",2,200.67,109.2,91.47],[85671,"CBEM LOC DES HID CPO CER/FAS 400ml",5,302.53,76.6,225.93],[85672,"CBEM LOC DES HID CPO CER/FAS 200ml",3,142.46,28.71,113.75],[85677,"CBEM LOC DES HID CPO CER/FASES PRM 50ml",84,0.84,204.2,-203.36],[85679,"CBEM SAB BARRA CER/FASES 4x80g",16,524.4,163.13,361.27],[85714,"MALBEC DES ANTIT AER BLACK LEGEND 125ml",2,68.62,15.09,53.53],[85797,"REF ELYSEE CR DES HID ACET CPO V2 200g",1,74.9,38.1,36.8],[85917,"CBEM CR DUO DES HID CP DOC/DELIRIOS 200g",1,64.9,23.98,40.92],[85920,"CBEM DES COL BDY SPLSH AMORUDA 200ml",11,838.2,264.71,573.49],[85935,"HER CODE CREM AVELUD DES CPO 250g",5,535.46,129.14,406.32],[85936,"HER CODE OL MASS CPO TOUCH 150ml",1,78.06,17.84,60.22],[85947,"HER CODE LOC DES HID CPO CLIMAX 200ml",3,185.67,37.95,147.72],[86092,"CBEM D/COL BDY SPLSH FEIR",2,114.49,70.18,44.31],[86116,"CACH/UVA 200ml CBEM DES COL BDY SPLSH DOC DELIRIO 200ml",14,1193.79,345.86,847.93],[86167,"ESTJ LILY JUMBO REG/25",3,845.97,395.85,450.12],[86170,"ESTJ ZAAD NAT/25",2,596.41,0.0,596.41],[86171,"ESTJ LILY 02 NAT/25",3,728.12,0.0,728.12],[86175,"ESTJ HER CODE TOUCH NAT/25",2,430.29,0.0,430.29],[86176,"ESTJ FLORATTA RED PASSION NAT/25",2,354.79,0.0,354.79],[86177,"ESTJ MALBEC GOLD NAT/25",1,214.11,0.0,214.11],[86178,"ESTJ COFFEE WOMAN SEDUCTION NAT/25",1,194.9,0.0,194.9],[86179,"ESTJ ARBO NAT/25",3,465.63,50.69,414.94],[86181,"ESTJ LILY LEAU/LILY SOLEIL NAT/25",2,326.64,0.0,326.64],[86188,"ESTJ QUASAR DEEP BLUE NAT/25",3,400.54,0.0,400.54],[86190,"ESTJ NSPA AMEIXA NEGRA NAT/25",1,135.9,0.0,135.9],[86191,"ESTJ EGEO BLUE NAT/25",2,271.8,0.0,271.8],[86194,"ESTJ CBEM DELEITE NAT/25",1,134.9,42.05,92.85],[86206,"ESTJ HER CODE REG/25",5,1236.53,659.75,576.78],[86272,"MATCH SPR BRLH HID/BRILHO V3 100ml",2,114.5,32.1,82.4],[86295,"MATCH MASC CAP SCIENCE RECONS V3 250g",2,66.98,30.54,36.44],[86297,"ESTJ SOPHIE SPIDER GWEN CRIANC/25",1,165.07,74.7,90.37],[86369,"NSPA DES COL BDY SPLSH ORQ/LUMIERE 200ml",3,280.47,115.86,164.61],[86374,"DR BOTICA CR PENT POC/TR/NO LIS PRM 65ml",1,29.9,4.69,25.21],[86464,"ESTJ QUASAR CLASSIC REG/25",1,164.43,0.0,164.43],[86465,"ESTJ CBEM DELEITE REG/25",1,72.9,30.02,42.88],[86757,"NSPA SAB LIQ PERF AMEIXA NEGRA V2 250ml",4,231.56,63.44,168.12],[86766,"CBEM SAB LIQ CPO DELEITE 50ml",5,97.96,55.1,42.86],[86768,"FLORATTA SAB LIQ CPO RED 150ml",3,97.94,25.5,72.44],[86798,"NSPA CR PARFUMEE CPO AMEIXA 200g",1,114.9,61.36,53.54],[86799,"NSPA CR PARFUMEE CPO AMEIXA NEGRA 200g",3,353.26,184.08,169.18],[86869,"CLASH LOC DES HID CPO 200ml",4,194.95,45.4,149.55],[86870,"CLASH SAB BARR 2x80g",11,294.96,112.05,182.91],[86895,"LILY DES COL LEAU/LILY BLANCHE 75ml",3,557.7,241.2,316.5],[86897,"LILY DES COL LEAU/LILY BLANCHE PRM 10ml",2,0.02,12.62,-12.6],[86950,"NEXT GEL FIX P/CAB SPIDER MAN 150g",3,143.2,62.43,80.77],[86983,"HER CODE EDP CLIMAX 50ml",3,651.95,161.01,490.94],[86985,"HER CODE EDP CLIMAX PRM 10ml",3,0.05,21.03,-20.98],[86988,"LIZ CREM DES HID CPO AURA 250g",4,238.57,61.04,177.53],[86990,"LIZ DES COL AURA 100ml",8,1089.41,265.1,824.31],[87064,"CBEM SHAMP FEIRA CACH/UVA 270ml",2,51.44,22.26,29.18],[87066,"CBEM COND FEIR CACH/UVA 250ml",2,50.31,23.94,26.37],[87068,"CBEM CREM PENT FEIR CACH/UVA 300ml",1,39.77,17.12,22.65],[87142,"EGEO DES COL COGU PRM 10ml",2,26.63,9.36,17.27],[87268,"MAKE B PLT MULTIF READY 45,2g",2,554.45,334.4,220.05],[87272,"NSPA DES COL BDY SPLSH UVA MERLOT 200ml",4,347.26,114.26,233.0],[87315,"CBEM LOC DES HID CPO AMORUDA 200ml",11,434.65,93.15,341.5],[87321,"CBEM SAB LIQ ESF CPO AMORUDA 200ml",3,125.98,48.93,77.05],[87326,"CBEM BASTAO ANTIATR EF/SHORT AMORA 35g",1,33.5,26.71,6.79],[87327,"CBEM SAB BARR CPO AMORUDA 2x80g",5,99.95,37.5,62.45],[87353,"BOTI BABY NANINHA FIDO PES",1,49.19,22.66,26.53],[87363,"SOPHIE NEXT NECESS SP/MAN SP/GWEN CR VEL",6,241.5,174.9,57.79],[87364,"NSPA NECESS PREMIUM PES",2,135.83,51.8,79.07],[87374,"NSPA SAB BARRA CORP AMEI/NEG V3 2x90g",10,244.67,93.83,150.84],[87443,"CBEM LOC DES HID CPO AMORUDA 400ml",5,300.42,73.1,227.32],[87452,"MALBEC SAB BARRA CUIDADOS 4x80g",2,98.45,34.84,63.61],[87478,"BOTIK GEL LIMP FAC VITAM C V2 200g",1,82.79,12.99,69.8],[87491,"BOTIK GEL LIMP F MCL AC MAND/SAL V2 150g",6,293.79,76.05,217.74],[87556,"EGEO CR DES HID CPO DOLCE ILLUSION 250g",4,218.44,100.07,118.37],[87771,"MAKE B BLUSH COMP BERRY MINI PRM 1,5g",15,56.16,83.67,-27.51],[87773,"QUASAR DES COL RUSH V3 100ml",6,503.11,387.78,115.33],[87787,"MAKE B PLT MULTIF BL/FUS SOFT FUSION 20g",1,167.21,56.63,110.58],[87818,"MAKE B BAT EASY MATE WHISPER BEIGE 3,9g",3,151.33,77.88,73.45],[87820,"MAKE B BAT EASY MATE WARM CLAY 3,9g",3,160.12,77.94,82.18],[87896,"FLORATTA EDP RED PASSION V2 75ml",3,619.11,279.27,339.84],[87898,"BOTICOLL CONNEXION DES COL V3 100ml",2,235.17,57.88,177.29],[87914,"NSPA CREM HID MAOS/PES LILAC V2 50g",1,27.86,17.9,9.96],[87916,"NSPA CR ANTIS P/MAOS FPS15 QUINOA V3 75g",1,51.54,24.79,26.75],[87951,"HADIYA EDP 75ml",1,343.3,139.54,203.76],[87963,"CBEM OL CPO TERMICO CER/FASES 110ml",1,45.19,11.46,33.73],[87982,"ACCORDES DES BDY SPR V7 100ml",19,709.59,150.86,558.73],[88005,"MALBEC LOC DES HID CPO BLACK LEG 200ml",3,189.7,39.03,150.67],[88009,"MAKE B BAT LIQ MAT AC/POL ULT/BRW V2 5ml",1,59.57,26.28,33.29],[88011,"MAKE B BAT LIQ MAT AC/POL EXO/ROS V2 5ml",2,122.22,30.42,91.8],[88012,"MAKE B BAT LIQ MAT AC/POL G/BERR V2 5ml",1,67.9,26.28,41.62],[88015,"MAKE B BAT LIQ MAT AC/POL DEEP/RO V2 5ml",3,200.98,80.4,120.58],[88016,"MAKE B BAT LIQ MAT AC/POL BRW/WIN V2 5ml",1,65.63,15.12,50.51],[88017,"MAKE B BAT LIQ MAT AC/POL RED/BOO V2 5ml",1,67.9,14.03,53.87],[88019,"BOTICA 214 EDP DARK MINT V3 90ml",5,959.89,284.31,675.58],[88031,"CBEM LOC DES HID CPO AMORUDA PRM 50ml",9,96.62,62.1,34.52],[88077,"NSPA LOC DES HID CPO AMEIXA V7 400ml",2,117.8,67.22,50.58],[88130,"HER CODE DES COL BDY SPLSH 200ml",4,315.71,106.08,209.63],[88135,"FLORATTA EDP ROSE SUCREE 75ml",22,3638.62,1904.82,1733.8],[88137,"FLORATTA EDP ROSE SUCREE PRM 10ml",5,16.77,40.0,-23.23],[88199,"CBEM CR HID MAOS NUVEM V5 45g",5,114.8,76.0,38.8],[88209,"ESTJ NSPA AMEIXA REG/25",2,221.8,113.76,108.04],[88305,"MALBEC DES COL BDY SPLSH 200ml",7,567.41,291.96,275.45],[88306,"ELYSEE DES COL BDY SPLSH 200ml",4,342.46,223.98,118.48],[88310,"CBEM LOC DES HID CPO MORAN/LEIT V8 400ml",3,198.38,79.95,118.43],[88311,"CBEM SAB BARRA MORAN/LEIT 4x80g",3,108.39,38.13,70.26],[88361,"NSPA SAB BARRA AMEIXA V3 2x90g",2,59.8,15.32,44.48],[88365,"NSPA SAB BARRA AMEIXA V5 3x90g",10,289.2,146.7,142.5],[88395,"CBEM DES COL BDY SPLSH ROS/ALG V4 200ml",1,92.03,16.89,75.14],[88396,"CBEM DES COL BDY SPLSH CER/FASES 200ml",8,690.97,182.68,508.29],[88467,"FLORATTA CR HID DES CPO ROSE SUCREE 200g",8,633.82,276.32,357.5],[88468,"NSPA SAB BARRA AMEIXA V7 90g",1,15.9,5.46,10.44],[88518,"MAKE B BAT CR C/AC POL SOFT NUDE V2 3,6g",1,62.11,0.0,62.11],[88519,"MAKE B BAT GLOSSY C/AC POL NUDE V2 3,6g",1,64.9,16.3,48.6],[88903,"BOTICA 214 CR P/P BARB AR/OAS F/AMB 150g",2,99.02,22.02,77.0],[88910,"BOT SUN PR FAC C/C FPS70 ACQ/F C4.5 40ml",2,153.46,36.18,117.28],[88911,"LILY SAB BARRA V2 2x90g",21,882.55,362.95,519.6],[88913,"CBEM SPR INTIMO CER/FASES 75ml",7,263.09,96.66,156.83],[89261,"BOTICA 214 EDP GOLD/GARD V3 75ml",4,864.95,351.72,513.23],[89304,"ESTJ ELYSEE MAES/26",6,2093.88,923.52,1170.36],[89305,"ESTJ LILY MAES/26",5,1699.5,0.0,1699.5],[89306,"ESTJ HER CODE MAES/26",1,259.51,0.0,259.51],[89307,"ESTJ COFFEE WOM DUO MAES/26",4,1078.76,303.28,775.48],[89308,"ESTJ FLORATTA RED MAES/26",14,3148.37,957.88,2190.49],[89309,"ESTJ EGEO DOLCE MAES/26",3,628.63,0.0,628.63],[89310,"ESTJ LIZ MAES/26",8,1758.7,520.16,1238.54],[89311,"ESTJ GLAMOUR SECRETS BLACK MAES/26",4,719.15,228.92,490.23],[89312,"ESTJ LILY CUIDADOS MAES/26",6,942.51,353.64,588.87],[89313,"ESTJ FLORATTA ROSE MAES/26",10,1660.97,424.81,1236.16],[89314,"ESTJ EGEO CHOC MAES/26",5,799.5,200.4,599.1],[89316,"ESTJ CELEBRE FEM MAES/26",15,1669.92,0.0,1669.92],[89317,"ESTJ NSPA AMEIXA MAES/26",11,1209.95,0.0,1209.95],[89318,"ESTJ CBEM DELEITE MAES/26",16,1542.84,468.64,1074.2],[89319,"ESTJ CBEM PESSEGURA MAES/26",5,282.85,105.13,177.72],[89337,"ESTJ LILY LEAU/LILY BLANCHE MAES/26",6,1365.26,410.88,954.38],[89338,"CBEM NECESSAIRE ROSA PES",4,193.25,34.24,151.96],[89366,"NSPA DES COL BDY SPLSH ROSAS/SCRT 200ml",6,481.12,143.44,337.68],[89397,"CX PRESENTE G BOT INST/25 VDA",1,19.13,0.0,19.13],[89401,"CX PRESENTE M BOTI INST/25 VDA",17,233.53,0.0,233.53],[89446,"LILY CR AC DES HID CP LEAU/LILY SOL 200g",1,115.0,47.24,67.76],[89484,"NSPA TRIO SAB BARR BES SEL COLL 3x100g",7,362.31,119.42,242.89],[89658,"CBEM MANTG DES HID CPO DELEITE 200g",5,300.71,130.8,169.91],[89660,"CBEM MANTG DES HID CPO DEL/CARAMEL 200g",2,127.75,52.32,75.43],[89662,"CBEM LOC DES HID CPO DEL/CARAMEL 400ml",5,278.05,134.3,143.75],[89663,"CBEM SAB BARRA DELEITE ESPEC 2x90g",10,238.17,100.4,137.77],[89697,"CBEM ADESIVO FAC SECATIVO ESPINHAS 24UN",2,69.8,8.68,61.12],[89816,"THE BLEND EDP BOURBON V2 100ml",6,2017.91,734.11,1283.8],[89840,"CAIXA LACO M BOTI PAIS/25 UNIT",1,10.2,0.0,10.2],[89957,"ESTJ HER COD CLIMAX AMOR/26",3,974.59,341.01,633.58],[89958,"ESTJ MALBEC X AMOR/26",2,539.9,183.5,356.4],[89959,"ESTJ FLORATTA RED PASSION AMOR/26",18,4088.48,1477.9,2610.58],[89960,"ESTJ LILY L EAU AMOR/26",2,460.85,208.65,252.2],[89961,"ESTJ BOTICA 214 DARK MINT AMOR/26",5,1135.58,330.85,804.73],[89962,"ESTJ COFFEE W/SED AMOR/26",1,224.9,96.58,128.32],[89963,"ESTJ FLORATTA RED AMOR/26",14,2332.11,690.62,1641.49],[89964,"ESTJ EGEO DOLCE AMOR/26",5,859.74,386.3,473.44],[89965,"ESTJ EGEO BOMB BLACK AMOR/26",3,441.02,206.01,235.01],[89966,"ESTJ QUASAR VISION AMOR/26",4,622.97,283.28,339.69],[89967,"ESTJ CELEBRE FOUG/AROM/FORC AMOR/26",2,218.76,98.68,120.08],[89968,"ESTJ CELEBRE AGORA FEM AMOR/26",5,558.37,170.1,388.27],[89969,"ESTJ CBEM AMORUDA AMOR/26",4,388.98,171.64,217.34],[89970,"ESTJ NSPA ORQUIDEA LUMIERE AMOR/26",6,685.97,236.84,449.13],[90200,"ESTJ HER CODE SPLASH MAES/26",8,1210.27,331.28,878.99],[90219,"CBEM DES COL BDY SPLSH DEL/CARAM 200ml",2,141.28,70.14,71.14],[90370,"PMPCK EGEO DES BDY SPR BLUE",1,66.67,15.24,51.43],[90371,"PMPCK CBEM DES ANTIT ROLL ON ROS/ALG",2,72.95,38.6,34.35],[90375,"PMPCK MALBEC DES ANTIT ROLL ON",2,86.78,29.18,57.6],[90710,"MAKE B BAS LIQ MATE SALICYLIC 230N 30g",1,94.56,36.55,58.01],[90712,"MAKE B BAS LIQ MATE SALICYLIC 220Q 30g",2,142.72,73.1,69.62],[90716,"MAKE B BAS LIQ MATE SALICYLIC 200N 30g",1,70.83,36.55,34.28],[90721,"MAKE B BAS LIQ MATE SALICYLIC 170Q 30g",1,59.94,36.55,23.39],[90731,"MAKE B BAS LIQ MATE SALICYLIC 100F 30g",1,71.88,36.55,35.33],[90819,"SACOLA PP BOTICARIO INST/25",8,0.08,5.68,-5.6],[90821,"SACOLA P BOTICARIO INST/25",47,0.47,61.57,-61.1],[90822,"SACOLA M BOTICARIO INST/25",146,3.55,227.76,-224.21],[90995,"CBEM SAB LIQ CPO 2/1 CER/FASES 200ml",2,82.14,17.46,64.68],[90998,"CBEM SAB LIQ CPO DEL/CARAMEL 150ml",3,119.68,54.27,65.41],[92222,"BOTICA 214 LOC D H CP AR/OAS FL/FR 150ml",2,88.22,21.8,66.42],[94499,"CBEM SAB BARRA PESSEGURA V3 4x80g",8,237.95,102.56,135.39],[94539,"LILY HAIR MIST ACETINADO 50ml",2,212.54,61.88,150.66],[94673,"CBEM GEL LIMP FAC FEIR TANGERINA V2 150g",1,27.54,0.0,27.54],[94776,"CAIXA LACO M NATAL 2025 BOTI UNIT",2,29.18,0.0,29.18],[95012,"COFFEE D/COL WOM/ADD OR/FRUT PRM V2 10ml",2,33.55,10.54,23.01],[95419,"MAKE B BAT EASY MATE BARE ROSE 3,9g",1,47.81,25.98,21.83],[95919,"NSPA LOC DES HID CPO BAUN/EXCL 380ml",1,68.41,35.61,32.8],[96231,"COMB MALBEC CUIDADOS 02 AMOR/26",1,81.8,0.0,81.8],[96444,"SACOLA G MAES 2026 BOTI UNIT",4,0.04,0.0,0.04],[96579,"CAIXA LACO M AMOR 2026 BOTI UNIT",4,41.13,0.0,41.13]]},"xlsx":[{"codigo":"24303","razao":"ACQUA DISTRIBUIDORA DE PERFUMES E COMETICOS LTDA","gmv":321502.17,"ticket":207.15,"boletos":1552,"itensBoleto":2.45,"metaReceita":null,"metaAting":null,"crescimento":null,"metaTicket":null,"metaTicketAting":null,"metaItens":null,"metaItensAting":null,"receitaLiq":330849.16,"receitaLiqTrocas":327131.56,"b1Valor":61047.22,"fidBoletos":1659,"fidPct":94.48,"descontos":113534.77,"trocasValor":3717.6,"trocasQtd":23,"recarga":0,"b1Qtd":669}]};
+/* ============================================================
+   Renderização, simulador e inicialização
+   ============================================================ */
+
+/* ---------- Réguas e estados ---------- */
+const SPEC = {
+  fid:    { best:100, worst:78,  marks:['ótimo ≥95','crítico <85'], estado:v=>v>=95?'ok':v>=85?'warn':'bad' },
+  desc:   { best:15,  worst:35,  marks:['saudável ≤22%','crítico >28%'], estado:v=>v<=22?'ok':v<=28?'warn':'bad' },
+  itens:  { best:3.5, worst:1.8, marks:['bom ≥3,0','alerta <2,5'], estado:v=>v>=3?'ok':v>=2.5?'warn':'bad' },
+  trocas: { best:0,   worst:5,   marks:['ok ≤1,5%','crítico >3%'], estado:v=>v<=1.5?'ok':v<=3?'warn':'bad' },
+  recorr: { best:16,  worst:2,   marks:['bom ≥12%','alerta <8%'], estado:v=>v>=12?'ok':v>=8?'warn':'bad' }
+};
+function regua(val, sp){
+  if (val == null || isNaN(val)) return '';
+  const pos = clamp((val - sp.best) / (sp.worst - sp.best), 0, 1) * 100;
+  return `<div class="regua"><div class="track"><div class="pin" style="left:${pos.toFixed(1)}%"></div></div>
+  <div class="marks"><span>${sp.marks[0]}</span><span>${sp.marks[1]}</span></div></div>`;
+}
+const cls = (sp, v) => v==null||isNaN(v) ? '' : 'c-'+sp.estado(v).replace('warn','warn').replace('ok','ok').replace('bad','bad');
+
+/* ---------- Heatmap ---------- */
+function heat(v, min, max, goodHigh){
+  if (v==null||isNaN(v)||min==null||max==null||min===max) return null; // sem comparação relativa possível (ex.: 1 loja só)
+  let t = clamp((v-min)/(max-min), 0, 1); if (!goodHigh) t = 1-t;
+  const col = t > .66 ? '52,199,123' : t > .33 ? '232,184,75' : '225,99,88';
+  return `rgba(${col},${(0.13+0.13*Math.abs(t-0.5)*2).toFixed(2)})`;
+}
+function heatCell(txt, v, vals, goodHigh){
+  const nums = vals.filter(x=>x!=null&&!isNaN(x));
+  if (!nums.length || v==null||isNaN(v)) return `<span class="heat">${txt}</span>`;
+  const bg = heat(v, Math.min(...nums), Math.max(...nums), goodHigh);
+  return bg ? `<span class="heat num" style="background:${bg}">${txt}</span>` : `<span class="heat num">${txt}</span>`;
+}
+
+/* ---------- Donut SVG ---------- */
+const PAL = ['#34C77B','#D9B25F','#5BA8D9','#E8B84B','#B07CC6','#E16358','#7FBF63','#6E8A7B'];
+function donutSVG(parts){
+  const total = parts.reduce((s,p)=>s+p.val,0) || 1;
+  const R = 42, C = 2*Math.PI*R; let off = 0; // dashoffset de C/4 no 1º segmento: donut começa no topo
+  let segs = '';
+  parts.forEach((p,i)=>{
+    const len = p.val/total*C;
+    segs += `<circle r="${R}" cx="60" cy="60" fill="none" stroke="${PAL[i%PAL.length]}" stroke-width="17"
+      stroke-dasharray="${Math.max(len-1.5,0.01)} ${C}" stroke-dashoffset="${-off+C*0.25}" />`;
+    off += len;
+  });
+  return `<svg viewBox="0 0 120 120" width="118" height="118" role="img" aria-label="Mix por categoria">${segs}</svg>`;
+}
+
+/* ---------- Ingestão ---------- */
+async function handleFiles(list){
+  for (const f of [...list]){
+    const name = f.name;
+    try {
+      if (/\.pdf$/i.test(name)){
+        const parsed = await parseABC(await f.arrayBuffer());
+        if (!parsed.meta.codigo || !parsed.items.length) { state.files.push({name, st:'bad', info:'não reconhecido como ABC RetaguardaGB'}); continue; }
+        const val = validarABC(parsed);
+        const s = getStore(parsed.meta.codigo);
+        s.pdfMeta = parsed.meta;
+        s.abc = analisarABC(parsed);
+        state.files.push({ name, st: val.ok?'ok':'warn', info: `loja ${parsed.meta.codigo} · ` + (val.ok ? 'rodapé conferido' + (val.notas.length ? ' · ' + val.notas.join(' · ') : '') : val.difs.join(' · ')) });
+      } else if (/\.(xlsx|xls|csv)$/i.test(name)){
+        const buf = await f.arrayBuffer();
+        const rows = /\.csv$/i.test(name) ? parseIndicadores(decodeTexto(buf), true) : parseIndicadores(new Uint8Array(buf));
+        if (!rows.length){ state.files.push({name, st:'bad', info:'nenhuma linha de loja encontrada'}); continue; }
+        rows.forEach(r => { getStore(r.codigo).ind = r; });
+        state.files.push({ name, st:'ok', info:`indicadores de ${rows.length} loja(s): ${rows.map(r=>r.codigo).join(', ')}` });
+      } else state.files.push({ name, st:'bad', info:'formato não suportado' });
+    } catch(e){ console.error(e); state.files.push({ name, st:'bad', info:'erro ao ler: '+e.message }); }
+  }
+  renderAll();
+}
+
+/* ---------- Derivação geral ---------- */
+function todasLojas(){
+  return [...state.stores.values()].map(derivar).sort((a,b)=>(b.gmv||b.fatPDF||0)-(a.gmv||a.fatPDF||0));
+}
+
+/* ---------- Render: header e arquivos ---------- */
+function renderChips(lojas){
+  const pg = periodoGlobal();
+  let h = `<div class="chip">Lojas carregadas <b>${lojas.length} de 7</b></div>`;
+  if (pg) h += `<div class="chip">Período <b>${pg.label}</b></div>`;
+  if (pg && pg.divergem) h += `<div class="chip warn">⚠ períodos divergem entre PDFs</div>`;
+  for (const l of lojas){
+    if (l.fatPDF && l.receitaLiq && Math.abs(l.fatPDF/l.receitaLiq - 1) > 0.15)
+      h += `<div class="chip warn">⚠ ${l.codigo}: faturamento do ABC (${fmtBRL(l.fatPDF)}) destoa dos indicadores (${fmtBRL(l.receitaLiq)}) — confira se as fontes são da mesma loja</div>`;
+  }
+  $('#headChips').innerHTML = h;
+  $('#fileChips').innerHTML = state.files.map(f =>
+    `<span class="fchip"><span class="${f.st==='ok'?'ok':'bad'}">${f.st==='ok'?'✓':'⚠'}</span> ${esc(f.name)} <span class="meta">· ${esc(f.info)}</span></span>`).join('')
+    + (state.files.length ? '' : `<span class="fchip"><span class="seal">✦ análise pré-carregada</span> <span class="meta">loja 24303 validada contra o rodapé do RetaguardaGB</span></span>`);
+}
+
+/* ---------- Render: Canal ---------- */
+function renderCanal(lojas, canal, strats){
+  const v = $('#view-canal');
+  if (!lojas.length){ v.innerHTML = `<div class="empty"><b>Nenhuma loja carregada.</b><br>Arraste os PDFs do ABC de Vendas e a planilha de indicadores na área acima.</div>`; return; }
+  const pot = strats.filter(s=>s.somavel&&s.impacto).reduce((s,x)=>s+x.impacto,0);
+  const kpi = (lb, val, hint='', klass='') => `<div class="pill ${klass}"><div class="lb">${lb}</div><div class="v num ${klass}">${val}</div>${hint?`<div class="hint">${hint}</div>`:''}</div>`;
+  v.innerHTML = `
+    <div class="kpis">
+      ${kpi('GMV / mês', fmtBRL(canal.gmvMes), canal.meses?`${fmtBRL(canal.gmv)} no período`:'carregue 1 PDF p/ mensalizar')}
+      ${kpi('Cupons / dia · média', fmtN(canal.boletosDiaMedia,1), `${fmtN(canal.boletos)} cupons no período`)}
+      ${kpi('Ticket médio', fmtBRL(canal.ticket,2))}
+      ${kpi('Itens / cupom', `<span class="${cls(SPEC.itens,canal.itensBoleto)}">${fmtN(canal.itensBoleto,2)}</span>`)}
+      ${kpi('Fidelidade', `<span class="${cls(SPEC.fid,canal.fidPct)}">${fmtPct(canal.fidPct)}</span>`, 'cupons identificados')}
+      ${kpi('Desconto s/ etiqueta', `<span class="${cls(SPEC.desc,canal.descEtiqPct)}">${fmtPct(canal.descEtiqPct)}</span>`, fmtBRL(canal.descPorBoleto,2)+' por cupom')}
+      ${kpi('Margem bruta', fmtPct(canal.margem), 'pelo ABC (lucro/faturamento)')}
+      ${kpi('Potencial identificado', fmtBRL(pot)+'<small> /mês</small>', 'soma das alavancas aritméticas','gold')}
+    </div>
+    <div class="sec-t">Ranking das lojas</div>
+    <div class="tbl-wrap"><table class="rank"><thead><tr>
+      <th>Loja</th><th>GMV/mês</th><th>Cupons/dia</th><th>Ticket</th><th>Itens/cupom</th><th>Fidel.</th>
+      <th>Desc. etiq.</th><th>Desc./cupom</th><th>Trocas</th><th>Margem</th><th>Recorr.</th><th>Potencial/mês</th>
+    </tr></thead><tbody>
+    ${lojas.map(l => {
+      const potL = strats.filter(s=>s.somavel&&s.impacto&&s.loja.codigo===l.codigo).reduce((s,x)=>s+x.impacto,0);
+      const col = k => lojas.map(x=>x[k]);
+      return `<tr>
+        <td class="loja">${esc(nomeLoja(l))}<small>${l.codigo}${l.temPDF?' · ABC ✓':''}${l.temInd?' · ind ✓':''}</small></td>
+        <td>${heatCell(fmtBRL(l.gmvMes), l.gmvMes, col('gmvMes'), true)}</td>
+        <td>${heatCell(fmtN(l.boletosDia,1), l.boletosDia, col('boletosDia'), true)}</td>
+        <td>${heatCell(fmtBRL(l.ticket,2), l.ticket, col('ticket'), true)}</td>
+        <td>${heatCell(fmtN(l.itensBoleto,2), l.itensBoleto, col('itensBoleto'), true)}</td>
+        <td>${heatCell(fmtPct(l.fidPct), l.fidPct, col('fidPct'), true)}</td>
+        <td>${heatCell(fmtPct(l.descEtiqPct), l.descEtiqPct, col('descEtiqPct'), false)}</td>
+        <td>${heatCell(fmtBRL(l.descPorBoleto,2), l.descPorBoleto, col('descPorBoleto'), false)}</td>
+        <td>${heatCell(fmtPct(l.trocasPct), l.trocasPct, col('trocasPct'), false)}</td>
+        <td>${heatCell(fmtPct(l.margem), l.margem, col('margem'), true)}</td>
+        <td>${heatCell(fmtPct(l.recorrPct), l.recorrPct, col('recorrPct'), true)}</td>
+        <td>${heatCell(fmtBRL(potL), potL, lojas.map(x=>strats.filter(s=>s.somavel&&s.impacto&&s.loja.codigo===x.codigo).reduce((s,y)=>s+y.impacto,0)), true)}</td>
+      </tr>`; }).join('')}
+    </tbody></table></div>
+    <p class="note"><b>Como ler:</b> verde = melhor posição relativa dentro do canal; vermelho = pior. “Cupons/dia” usa dias corridos do período do relatório.
+    “Desc. etiqueta” = descontos ÷ (GMV + descontos). “Recorrência” = participação de make + skincare + capilar no faturamento (ABC).
+    ${canal.n===1?'<b>Com 1 loja carregada, as réguas usam faixas absolutas — carregue as demais para calibrar pelo padrão do canal.</b>':''}</p>`;
+}
+
+/* ---------- Render: Lojas ---------- */
+function renderLojas(lojas){
+  const v = $('#view-lojas');
+  if (!lojas.length){ v.innerHTML = `<div class="empty"><b>Nenhuma loja carregada ainda.</b></div>`; return; }
+  v.innerHTML = `<div class="stores">` + lojas.map(l => {
+    const s = state.stores.get(l.codigo);
+    const kg = (lb, val, rg='') => `<div class="kg"><div class="lb">${lb}</div><div class="v num">${val}</div>${rg}</div>`;
+    let det = '';
+    if (s.abc){
+      const a = s.abc;
+      const cats = Object.entries(a.byCat).sort((x,y)=>y[1].fat-x[1].fat);
+      const top6 = cats.slice(0,6), resto = cats.slice(6).reduce((s,c)=>s+c[1].fat,0);
+      const parts = top6.map(c=>({label:c[0],val:c[1].fat})); if (resto>0) parts.push({label:'Demais',val:resto});
+      const marcas = Object.entries(a.byMarca).sort((x,y)=>y[1].fat-x[1].fat).slice(0,8);
+      const kitsArr = Object.entries(a.kits).sort((x,y)=>y[1].fat-x[1].fat);
+      det = `<div class="dgrid">
+        <div><div class="mini-t">Mix por categoria</div>
+          <div style="display:flex;gap:14px;align-items:center">${donutSVG(parts)}
+          <div class="legend">${parts.map((p,i)=>`<span><span class="sw" style="background:${PAL[i%PAL.length]}"></span>${esc(p.label)} <span class="pc">· ${fmtPct(p.val/a.fat*100,1)}</span></span>`).join('')}</div></div>
+        </div>
+        <div><div class="mini-t">Curva ABC · ${fmtN(a.its.length)} SKUs</div>
+          <div class="abc-bar">
+            <div style="width:${a.curva.A.fat/a.fat*100}%;background:#34C77B" title="A"></div>
+            <div style="width:${a.curva.B.fat/a.fat*100}%;background:#D9B25F" title="B"></div>
+            <div style="width:${a.curva.C.fat/a.fat*100}%;background:#E16358" title="C"></div>
+          </div>
+          <div class="legend">
+            <span><span class="sw" style="background:#34C77B"></span>Curva A — ${a.curva.A.skus} SKUs <span class="pc">· 80% do faturamento</span></span>
+            <span><span class="sw" style="background:#D9B25F"></span>Curva B — ${a.curva.B.skus} SKUs <span class="pc">· 15%</span></span>
+            <span><span class="sw" style="background:#E16358"></span>Curva C — ${a.curva.C.skus} SKUs <span class="pc">· 5%</span></span>
+          </div>
+          <div class="mini-t" style="margin-top:14px">Sinais de atenção</div>
+          <div class="alert-li">${a.cauda.n} SKUs (${fmtPct(a.cauda.pct,0)}) venderam &lt; R$ 100 no período · ${a.qtd1} venderam 1 unidade</div>
+          <div class="alert-li">${a.brindes.n} SKUs de brinde/PRM: custo de ${fmtBRL(a.brindes.custo)} (investimento promocional)</div>
+          <div class="alert-li">${a.lucroNeg.n} SKUs com lucro negativo (${fmtBRL(a.lucroNeg.total)})</div>
+          ${kitsArr.length?`<div class="alert-li">Kits de data: ${kitsArr.map(k=>`${k[0]} ${fmtBRL(k[1].fat)}`).join(' · ')}</div>`:''}
+        </div>
+        <div><div class="mini-t">Top 10 SKUs por faturamento</div>
+          <table class="tskus">${a.ord.slice(0,10).map(i=>`<tr><td>${esc(i.nome)}</td><td>${fmtN(i.qtd)} un</td><td>${fmtBRL(i.fat)}</td></tr>`).join('')}</table>
+          <div class="mini-t" style="margin-top:14px">Marcas líderes</div>
+          <div class="brand-chips">${marcas.map(m=>`<span class="bchip"><b>${esc(m[0])}</b> ${fmtBRL(m[1].fat)}</span>`).join('')}</div>
+        </div>
+      </div>`;
+    } else det = `<p class="note">Sem PDF do ABC desta loja — carregue para liberar mix, curva ABC e margem.</p>`;
+    return `<article class="scard" data-cod="${l.codigo}">
+      <div class="head">
+        <div style="flex:1">
+          <input value="${esc(nomeLoja(l))}" data-rename="${l.codigo}" aria-label="Nome da loja" title="Clique para renomear">
+          <div class="cod">${l.codigo} · ${esc(l.razao||'')}</div>
+        </div>
+        ${l.temPDF&&l.temInd?'<span class="seal">✦ completo</span>':''}
+      </div>
+      <div class="body"><div class="kgrid">
+        ${kg('GMV / mês', fmtBRL(l.gmvMes))}
+        ${kg('Cupons / dia', fmtN(l.boletosDia,1))}
+        ${kg('Ticket', fmtBRL(l.ticket,2))}
+        ${kg('Margem (ABC)', fmtPct(l.margem))}
+        ${kg('Itens / cupom', `<span class="${cls(SPEC.itens,l.itensBoleto)}">${fmtN(l.itensBoleto,2)}</span>`, regua(l.itensBoleto, SPEC.itens))}
+        ${kg('Fidelidade', `<span class="${cls(SPEC.fid,l.fidPct)}">${fmtPct(l.fidPct)}</span>`, regua(l.fidPct, SPEC.fid))}
+        ${kg('Desconto s/ etiqueta', `<span class="${cls(SPEC.desc,l.descEtiqPct)}">${fmtPct(l.descEtiqPct)}</span>`, regua(l.descEtiqPct, SPEC.desc))}
+        ${kg('Trocas', `<span class="${cls(SPEC.trocas,l.trocasPct)}">${fmtPct(l.trocasPct)}</span>`, regua(l.trocasPct, SPEC.trocas))}
+        ${kg('Recorrência (make·skin·cap)', `<span class="${cls(SPEC.recorr,l.recorrPct)}">${fmtPct(l.recorrPct)}</span>`, regua(l.recorrPct, SPEC.recorr))}
+        ${kg('Cartão presente', l.recarga===0?'<span class="c-bad">R$ 0</span>':fmtBRL(l.recarga))}
+      </div></div>
+      <button class="expand" data-expand="${l.codigo}">ver mix, curva ABC e top SKUs ▾</button>
+      <div class="detail" id="det-${l.codigo}">${det}</div>
+    </article>`;
+  }).join('') + `</div>`;
+  $$('[data-expand]').forEach(b => b.onclick = () => { const d = $('#det-'+b.dataset.expand); d.classList.toggle('on'); b.textContent = d.classList.contains('on') ? 'recolher ▴' : 'ver mix, curva ABC e top SKUs ▾'; });
+  $$('[data-rename]').forEach(inp => inp.onchange = () => { state.nomes[inp.dataset.rename] = inp.value.trim(); renderAll(); });
+}
+
+/* ---------- Render: Estratégias ---------- */
+function renderEstrategias(lojas, strats){
+  const v = $('#view-estrategias');
+  if (!strats.length){ v.innerHTML = `<div class="empty"><b>Nenhuma estratégia gerada ainda.</b><br>Carregue os relatórios — o motor cruza cada indicador com a régua e prioriza por impacto.</div>`; return; }
+  const pot = strats.filter(s=>s.somavel&&s.impacto).reduce((s,x)=>s+x.impacto,0);
+  const filtro = $('#fStrat') ? $('#fStrat').value : 'all';
+  const list = strats.filter(s => filtro==='all' || s.loja.codigo===filtro);
+  v.innerHTML = `
+    <div class="strat-top">
+      <div class="potencial"><div class="lb">Potencial identificado · alavancas aritméticas</div>
+        <div class="v num">${fmtBRL(pot)}<small> /mês</small></div></div>
+      <select class="sel" id="fStrat">
+        <option value="all">Todas as lojas (${strats.length} estratégias)</option>
+        ${lojas.map(l=>`<option value="${l.codigo}" ${filtro===l.codigo?'selected':''}>${esc(nomeLoja(l))}</option>`).join('')}
+      </select>
+    </div>
+    <div class="strats">${list.map(s=>`
+      <div class="strat ${s.sev}">
+        <div class="top">
+          <div class="badges"><span class="badge ${s.sev}">${s.sev==='critico'?'crítico':s.sev==='atencao'?'atenção':'oportunidade'}</span>
+          <span class="badge loja">${esc(nomeLoja(s.loja))}</span><h3>${esc(s.titulo)}</h3></div>
+          ${s.impacto?`<div class="impact num">${s.somavel?'':'~'}${fmtBRL(s.impacto)}<small> /mês${s.somavel?'':' (indireto)'}</small></div>`:''}
+        </div>
+        <p class="diag">${s.diag}</p>
+        <p class="meta-l">⌖ ${esc(s.meta)}</p>
+        <div class="acoes">${s.acoes.map(a=>`<label class="acao"><input type="checkbox"> <span>${esc(a)}</span></label>`).join('')}</div>
+        <p class="fonte">${esc(s.fonte)}</p>
+      </div>`).join('')}</div>`;
+  $('#fStrat').onchange = () => renderEstrategias(lojas, strats);
+}
+
+/* ---------- Render: Simulador ---------- */
+let simSel = 'CANAL';
+function renderSimulador(lojas, canal){
+  const v = $('#view-simulador');
+  if (!lojas.length){ v.innerHTML = `<div class="empty"><b>Carregue ao menos uma loja para simular.</b></div>`; return; }
+  if (simSel !== 'CANAL' && !lojas.find(l=>l.codigo===simSel)) simSel = 'CANAL';
+  const base = simSel==='CANAL' ? canal : lojas.find(l=>l.codigo===simSel);
+  const precoItem = simSel==='CANAL'
+    ? (lojas.map(l=>l.precoItemCB).filter(Boolean).reduce((s,x,_,arr)=>s+x/arr.length,0) || CONFIG.itemCrossFallback)
+    : (base.precoItemCB || CONFIG.itemCrossFallback);
+  const nDias = simSel==='CANAL' ? (lojas.filter(l=>l.boletosDia!=null).length||1) : 1;
+  v.innerHTML = `
+    <div class="strat-top">
+      <select class="sel" id="simSel">
+        <option value="CANAL" ${simSel==='CANAL'?'selected':''}>Canal — todas as lojas</option>
+        ${lojas.map(l=>`<option value="${l.codigo}" ${simSel===l.codigo?'selected':''}>${esc(nomeLoja(l))}</option>`).join('')}
+      </select>
+      <span class="chip">Base: GMV <b>${fmtBRL(base.gmvMes)}/mês</b> · desconto <b>${fmtPct(base.descEtiqPct)}</b> · <b>${fmtN(base.itensBoleto,2)}</b> itens/cupom · ticket <b>${fmtBRL(base.ticket,2)}</b></span>
+    </div>
+    <div class="sim-grid">
+      <div class="sim-card">
+        <div class="mini-t">Alavancas — arraste e veja o efeito</div>
+        <div class="slider-row"><div class="lr"><b>Reduzir desconto</b><span class="nv num" id="vDesc">0,0 p.p.</span></div>
+          <input type="range" id="sDesc" min="0" max="${CONFIG.simulador.maxDescPP}" step="0.5" value="0"></div>
+        <div class="slider-row"><div class="lr"><b>Itens a mais por cupom</b><span class="nv num" id="vItens">+0,00</span></div>
+          <input type="range" id="sItens" min="0" max="${CONFIG.simulador.maxItens}" step="0.05" value="0"></div>
+        <div class="slider-row"><div class="lr"><b>Cupons a mais por dia ${simSel==='CANAL'?'(por loja)':''}</b><span class="nv num" id="vBol">+0,0</span></div>
+          <input type="range" id="sBol" min="0" max="${CONFIG.simulador.maxBoletosDia}" step="0.5" value="0"></div>
+        <p class="note">Item adicional avaliado a ${fmtBRL(precoItem,2)} (preço médio de Corpo &amp; Banho ${simSel==='CANAL'?'do canal':'da loja'}). Modelo aditivo, tudo o mais constante.</p>
+      </div>
+      <div class="proj" id="projBox"></div>
+    </div>`;
+  const calc = () => {
+    const dpp = +$('#sDesc').value, dit = +$('#sItens').value, dbol = +$('#sBol').value;
+    $('#vDesc').textContent = fmtN(dpp,1)+' p.p.'; $('#vItens').textContent = '+'+fmtN(dit,2); $('#vBol').textContent = '+'+fmtN(dbol,1);
+    const efD = base.etiquetaMes ? dpp/100*base.etiquetaMes : 0;
+    const efI = base.boletosMes ? dit*base.boletosMes*precoItem : 0;
+    const efB = base.ticket ? dbol*nDias*CONFIG.diasMes*base.ticket : 0;
+    const tot = (base.gmvMes||0) + efD + efI + efB;
+    $('#projBox').innerHTML = `
+      <div class="row"><span>GMV atual / mês</span><b class="num">${fmtBRL(base.gmvMes)}</b></div>
+      <div class="row"><span>− ${fmtN(dpp,1)} p.p. de desconto × etiqueta mensal</span><b class="num">+ ${fmtBRL(efD)}</b></div>
+      <div class="row"><span>+ ${fmtN(dit,2)} item × ${fmtN(base.boletosMes||0)} cupons × ${fmtBRL(precoItem,2)}</span><b class="num">+ ${fmtBRL(efI)}</b></div>
+      <div class="row"><span>+ ${fmtN(dbol,1)} cupom/dia${simSel==='CANAL'?' × '+nDias+' lojas':''} × 30,44 × ticket</span><b class="num">+ ${fmtBRL(efB)}</b></div>
+      <div class="tot"><span class="l">GMV projetado / mês</span><span class="v num">${fmtBRL(tot)}</span></div>
+      <div class="delta num">${base.gmvMes?'+'+fmtPct((tot/base.gmvMes-1)*100,1)+' vs hoje · '+fmtBRL((tot-base.gmvMes)*12)+' /ano':''}</div>`;
+  };
+  ['sDesc','sItens','sBol'].forEach(id => $('#'+id).oninput = calc);
+  $('#simSel').onchange = e => { simSel = e.target.value; renderSimulador(lojas, canal); };
+  calc();
+}
+
+/* ---------- Resumo p/ Slack ---------- */
+function resumoSlack(lojas, canal, strats){
+  const pg = periodoGlobal();
+  const pot = strats.filter(s=>s.somavel&&s.impacto).reduce((s,x)=>s+x.impacto,0);
+  let t = `📊 *RADAR LOJAS — Canal Loja* ${pg?'('+pg.label+')':''}\n`;
+  t += `GMV/mês: *${fmtBRL(canal.gmvMes)}* · Ticket: ${fmtBRL(canal.ticket,2)} · Itens/cupom: ${fmtN(canal.itensBoleto,2)} · Fidelidade: ${fmtPct(canal.fidPct)} · Desconto s/ etiqueta: ${fmtPct(canal.descEtiqPct)}\n\n`;
+  for (const l of lojas){
+    t += `• *${nomeLoja(l)}* — GMV/mês ${fmtBRL(l.gmvMes)} · ${fmtN(l.boletosDia,1)} cupons/dia · ticket ${fmtBRL(l.ticket,2)} · ${fmtN(l.itensBoleto,2)} itens · fid ${fmtPct(l.fidPct)} · desc ${fmtPct(l.descEtiqPct)}\n`;
+  }
+  t += `\n🎯 *Top estratégias:*\n`;
+  strats.slice(0,5).forEach(s => { t += `${s.sev==='critico'?'🔴':s.sev==='atencao'?'🟡':'🔵'} ${nomeLoja(s.loja)}: ${s.titulo}${s.impacto&&s.somavel?' (~'+fmtBRL(s.impacto)+'/mês)':''}\n`; });
+  t += `\n💰 Potencial identificado: *${fmtBRL(pot)}/mês*`;
+  return t;
+}
+
+/* ---------- Orquestração ---------- */
+function renderAll(){
+  const lojas = todasLojas();
+  const canal = canalAgregado(lojas);
+  const strats = gerarEstrategias(lojas, canal);
+  renderChips(lojas);
+  renderCanal(lojas, canal, strats);
+  renderLojas(lojas);
+  renderEstrategias(lojas, strats);
+  renderSimulador(lojas, canal);
+}
+
+/* ---------- Eventos ---------- */
+$$('.tab').forEach(t => t.onclick = () => {
+  $$('.tab').forEach(x=>x.classList.toggle('on', x===t));
+  $$('.view').forEach(v=>v.classList.toggle('on', v.id==='view-'+t.dataset.v));
+});
+const dz = $('#dropzone');
+$('#btnPick').onclick = () => $('#fileInput').click();
+$('#fileInput').onchange = e => { handleFiles(e.target.files); e.target.value=''; };
+['dragover','dragenter'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('drag'); }));
+dz.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+$('#btnCopy').onclick = async () => {
+  const lojas = todasLojas(); const canal = canalAgregado(lojas);
+  const txt = resumoSlack(lojas, canal, gerarEstrategias(lojas, canal));
+  try { await navigator.clipboard.writeText(txt); $('#btnCopy').textContent = '✓ Copiado!'; }
+  catch(_){ prompt('Copie o resumo:', txt); }
+  setTimeout(()=>$('#btnCopy').textContent='Copiar resumo p/ Slack', 1800);
+};
+
+/* ---------- Init: seed da loja 24303 ---------- */
+(function initSeed(){
+  try {
+    const s = getStore(SEED.pdf.meta.codigo);
+    s.pdfMeta = SEED.pdf.meta;
+    s.abc = analisarABC(SEED.pdf);
+    SEED.xlsx.forEach(r => { getStore(r.codigo).ind = r; });
+  } catch(e){ console.error('seed', e); }
+  renderAll();
+})();
+</script>
+</body>
+</html>
