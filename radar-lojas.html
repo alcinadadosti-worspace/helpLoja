@@ -244,8 +244,18 @@ if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.clo
 /* ---------- CONFIG (edite aqui se quiser fixar nomes/réguas) ---------- */
 const CONFIG = {
   nomesLojas: {
-    // '24303': 'Penedo Matriz',  ← preencha o de-para código → nome da loja
+    '24303': 'Loja São Sebastião',
+    '24617': 'Loja Palmeira Sustentável',
+    '24668': 'Loja Palmeira',
+    '24669': 'Loja Penedo',
+    '24670': 'Loja Coruripe',
+    '24671': 'Loja Teotônio',
+    '5905':  'Loja Coruripe',   // código antigo da Coruripe (mesma loja física do 24670)
   },
+  // Códigos que são a MESMA loja física → somados sob o código atual.
+  // A Coruripe migrou de código no período (5905 antigo → 24670 atual): cada código guarda parte das vendas.
+  mergeLojas: { '5905': '24670' },
+  totalLojas: 6,   // lojas físicas da rede (Coruripe conta uma vez)
   diasMes: 30.44,
   regua: {
     fidelidade:       { otimo: 95, aceitavel: 85 },   // % (régua oficial do painel)
@@ -512,6 +522,7 @@ function derivar(s){
     if (!d.gmvMes && d.meses) d.gmvMes = s.abc.fat/d.meses;
   }
   d.temPDF = !!s.abc; d.temInd = !!s.ind;
+  d.mergedCods = s.mergedCods || [s.codigo];
   return d;
 }
 function diasGlobais(){
@@ -541,6 +552,51 @@ function canalAgregado(lojas){
   if (c.meses){ c.gmvMes = c.gmv/c.meses; c.etiquetaMes = c.etiqueta/c.meses; c.boletosMes = c.boletos/c.meses; }
   c.b1Pct = c.gmv ? c.b1Valor/c.gmv*100 : null;
   return c;
+}
+
+/* ---------- Fusão de códigos da mesma loja física (ex.: Coruripe 5905→24670) ---------- */
+function combinarABC(a, b){
+  if (!a || !b) return a || b;
+  const bySku = new Map();
+  const add = abc => abc.its.forEach(i => {
+    const e = bySku.get(i.sku);
+    if (e){ e[2]+=i.qtd; e[3]+=i.fat; e[4]+=i.custo; e[5]+=i.lucro; }
+    else bySku.set(i.sku, [i.sku, i.nome, i.qtd, i.fat, i.custo, i.lucro]);
+  });
+  add(a); add(b);
+  const merged = analisarABC({ meta: {}, items: [...bySku.values()] });
+  merged.dias = a.dias != null ? a.dias : b.dias;   // mesmo período nas duas fontes
+  return merged;
+}
+function combinarInd(a, b){
+  if (!a || !b) return a || b;
+  const o = { codigo: b.codigo || a.codigo, razao: b.razao || a.razao };
+  const somar = ['gmv','boletos','receitaLiq','receitaLiqTrocas','b1Valor','b1Qtd','fidBoletos','descontos','trocasValor','trocasQtd','recarga','metaReceita'];
+  for (const k of somar){ const x=a[k], y=b[k]; o[k] = (x==null && y==null) ? null : (x||0)+(y||0); }
+  const tb = (a.boletos||0) + (b.boletos||0);
+  o.ticket = tb ? o.gmv/tb : null;                                                  // recomputado: GMV/boletos
+  o.itensBoleto = tb ? ((a.itensBoleto||0)*(a.boletos||0)+(b.itensBoleto||0)*(b.boletos||0))/tb : null; // ponderado por boletos
+  o.fidPct = tb ? ((a.fidPct||0)*(a.boletos||0)+(b.fidPct||0)*(b.boletos||0))/tb : null;                // ponderado por boletos
+  o.metaAting = null; o.crescimento = null;
+  return o;
+}
+function lojasEfetivas(){
+  const merge = CONFIG.mergeLojas || {};
+  const map = new Map();
+  for (const [cod, s] of state.stores){
+    const alvo = merge[cod] || cod;
+    let dst = map.get(alvo);
+    if (!dst){ dst = { codigo: alvo, pdfMeta: null, abc: null, ind: null, mergedCods: [] }; map.set(alvo, dst); }
+    dst.pdfMeta = (cod === alvo && s.pdfMeta) ? s.pdfMeta : (dst.pdfMeta || s.pdfMeta); // razão social do código atual
+    dst.abc = combinarABC(dst.abc, s.abc);
+    dst.ind = combinarInd(dst.ind, s.ind);
+    dst.mergedCods.push(cod);
+  }
+  return map;
+}
+function todasLojas(){
+  state.efetivas = lojasEfetivas();   // usado por renderLojas e gerarEstrategias (mix/cauda da loja fundida)
+  return [...state.efetivas.values()].map(derivar).sort((a,b)=>(b.gmv||b.fatPDF||0)-(a.gmv||a.fatPDF||0));
 }
 
 /* ---------- Motor de estratégias ---------- */
@@ -680,7 +736,7 @@ function gerarEstrategias(lojas, canal){
     }
     /* 8 · Cauda longa */
     if (l.caudaPct != null && l.caudaPct > R.caudaPct.ok && l.temPDF){
-      const s = state.stores.get(l.codigo);
+      const s = (state.efetivas && state.efetivas.get(l.codigo)) || state.stores.get(l.codigo);
       out.push({ loja:l, sev: l.caudaPct > R.caudaPct.atencao ? 'atencao' : 'oportunidade', somavel:false, impacto: null,
         titulo: 'Enxugar a cauda longa do sortimento',
         diag: `${nm} tem <b>${s.abc.cauda.n} SKUs (${fmtPct(l.caudaPct,0)})</b> que venderam menos de R$ 100 no período inteiro — juntos, só ${fmtBRL(s.abc.cauda.fat)} (${fmtPct(s.abc.cauda.fat/l.fatPDF*100,1)} do faturamento). ${s.abc.qtd1} SKUs venderam exatamente 1 unidade.`,
@@ -787,25 +843,21 @@ async function handleFiles(list){
   renderAll();
 }
 
-/* ---------- Derivação geral ---------- */
-function todasLojas(){
-  return [...state.stores.values()].map(derivar).sort((a,b)=>(b.gmv||b.fatPDF||0)-(a.gmv||a.fatPDF||0));
-}
-
 /* ---------- Render: header e arquivos ---------- */
 function renderChips(lojas){
   const pg = periodoGlobal();
-  let h = `<div class="chip">Lojas carregadas <b>${lojas.length} de 7</b></div>`;
+  let h = `<div class="chip">Lojas carregadas <b>${lojas.length} de ${CONFIG.totalLojas||lojas.length}</b></div>`;
   if (pg) h += `<div class="chip">Período <b>${pg.label}</b></div>`;
   if (pg && pg.divergem) h += `<div class="chip warn">⚠ períodos divergem entre PDFs</div>`;
   for (const l of lojas){
+    if (l.mergedCods && l.mergedCods.length > 1) continue; // loja fundida: divergência já reconciliada pelo usuário
     if (l.fatPDF && l.receitaLiq && Math.abs(l.fatPDF/l.receitaLiq - 1) > 0.15)
       h += `<div class="chip warn">⚠ ${l.codigo}: faturamento do ABC (${fmtBRL(l.fatPDF)}) destoa dos indicadores (${fmtBRL(l.receitaLiq)}) — confira se as fontes são da mesma loja</div>`;
   }
   $('#headChips').innerHTML = h;
   $('#fileChips').innerHTML = state.files.map(f =>
     `<span class="fchip"><span class="${f.st==='ok'?'ok':'bad'}">${f.st==='ok'?'✓':'⚠'}</span> ${esc(f.name)} <span class="meta">· ${esc(f.info)}</span></span>`).join('')
-    + (state.files.length ? '' : `<span class="fchip"><span class="seal">✦ análise pré-carregada</span> <span class="meta">7 lojas (ABC + indicadores) validadas contra o rodapé do RetaguardaGB</span></span>`);
+    + (state.files.length ? '' : `<span class="fchip"><span class="seal">✦ análise pré-carregada</span> <span class="meta">6 lojas (ABC + indicadores) validadas contra o rodapé do RetaguardaGB</span></span>`);
 }
 
 /* ---------- Render: Canal ---------- */
@@ -858,7 +910,7 @@ function renderLojas(lojas){
   const v = $('#view-lojas');
   if (!lojas.length){ v.innerHTML = `<div class="empty"><b>Nenhuma loja carregada ainda.</b></div>`; return; }
   v.innerHTML = `<div class="stores">` + lojas.map(l => {
-    const s = state.stores.get(l.codigo);
+    const s = (state.efetivas && state.efetivas.get(l.codigo)) || state.stores.get(l.codigo);
     const kg = (lb, val, rg='') => `<div class="kg"><div class="lb">${lb}</div><div class="v num">${val}</div>${rg}</div>`;
     let det = '';
     if (s.abc){
@@ -901,7 +953,7 @@ function renderLojas(lojas){
       <div class="head">
         <div style="flex:1">
           <input value="${esc(nomeLoja(l))}" data-rename="${l.codigo}" aria-label="Nome da loja" title="Clique para renomear">
-          <div class="cod">${l.codigo} · ${esc(l.razao||'')}</div>
+          <div class="cod">${l.mergedCods && l.mergedCods.length>1 ? 'cód. '+[...l.mergedCods].sort().join(' + ') : l.codigo} · ${esc(l.razao||'')}</div>
         </div>
         ${l.temPDF&&l.temInd?'<span class="seal">✦ completo</span>':''}
       </div>
@@ -1054,7 +1106,7 @@ $('#btnCopy').onclick = async () => {
   setTimeout(()=>$('#btnCopy').textContent='Copiar resumo p/ Slack', 1800);
 };
 
-/* ---------- Init: seed com as 7 lojas (ABC + indicadores) ---------- */
+/* ---------- Init: seed com os 7 códigos (6 lojas físicas; 5905+24670 = Coruripe) ---------- */
 (function initSeed(){
   try {
     for (const pdf of SEED.pdfs){

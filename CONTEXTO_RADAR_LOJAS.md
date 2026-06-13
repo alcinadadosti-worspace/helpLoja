@@ -14,7 +14,8 @@
 
 ## 2. Contexto de negócio
 
-- Rede com **7 lojas** (canal loja) sob a operação ACQUA DISTRIBUIDORA DE PERFUMES E COSMETICOS LTDA. Só a loja **24303** foi carregada/analisada até agora; as demais serão adicionadas pelo usuário (de-para código → nome ainda não informado).
+- Rede com **6 lojas físicas** (canal loja) sob a operação ACQUA DISTRIBUIDORA DE PERFUMES E COSMETICOS LTDA. As 7 fontes de dados mapeiam para 6 lojas porque a **Coruripe migrou de código no período** (5905 antigo → 24670 atual) e o motor soma os dois.
+- **De-para código → nome (confirmado pelo usuário em 13/06/2026):** 24303 = Loja São Sebastião · 24669 = Loja Penedo · 24668 = Loja Palmeira · 24617 = Loja Palmeira Sustentável · 24671 = Loja Teotônio · 24670 (+5905) = Loja Coruripe. Configurado em `CONFIG.nomesLojas` e `CONFIG.mergeLojas`.
 - Período analisado: **26/12/2025 a 12/06/2026** (169 dias ≈ 5,55 meses).
 - Motivação: o canal loja está fraco em faturamento; o dono quer estratégias acionáveis.
 
@@ -137,7 +138,14 @@ Bugs encontrados rodando os arquivos reais da rede e corrigidos no `radar-lojas.
 
 **Validação re-executada (critério permanente mantido):** 7/7 PDFs reais com selo ✓ (somas do rodapé ao centavo; 5905 com nota de contagem), CSV real com 7 lojas e valores exatos, referência da 24303 intacta (169 dias, descEtiq 26,10%, margem 62,2%, curva A=220), pipeline completo com 7 lojas sem erro.
 
-**⚠ Pendência de dados — loja 5905:** o PDF (fat R$ 420,7k no período, header ACQUA) **não bate** com a linha 5905 do CSV (GMV R$ 201,6k, razão ALAN MARTINS TAVARES E CIA LTDA) — ~2x de diferença na mesma janela. Provável código repetido entre bases/lojas distintas. O chip de alerta da correção 5 sinaliza isso na UI; falta o usuário confirmar qual fonte é a loja certa.
+**✓ Resolvido (13/06/2026) — loja 5905/24670:** o usuário confirmou que **5905 e 24670 são a mesma loja física (Coruripe)**; 5905 é o código antigo. A divergência vinha de comparar fontes de códigos diferentes. Decisão do usuário: **somar os dois**. Implementado via `CONFIG.mergeLojas = {'5905':'24670'}` → `lojasEfetivas()`/`combinarABC`/`combinarInd` fundem ABC (união de SKUs, soma de qtd/fat/custo/lucro) e indicadores (soma dos somáveis; ticket = GMV/boletos; itens/cupom e fidelidade ponderados por boletos). Coruripe fundida: GMV R$ 828.025 · ABC R$ 1.054.943 · 3.605 boletos. O chip de divergência é suprimido para lojas fundidas (`mergedCods.length>1`).
+
+> Nota: mesmo somadas, ABC (R$ 1,05M) e receita líquida (R$ 828k) da Coruripe divergem ~25% — porque dentro do **código 5905** o ABC (R$ 420,7k) já era ~2x o GMV do CSV (R$ 201,6k), enquanto no 24670 ABC≈receita. O usuário viu os números combinados e optou por somar mesmo assim.
+
+## 11. Fusão de lojas (código atual × antigo)
+
+- `CONFIG.mergeLojas` mapeia código antigo → atual; `lojasEfetivas()` (seção "Estado e merge") consolida `state.stores` em lojas efetivas antes de `derivar`. `state.efetivas` (Map) é populado por `todasLojas()` e lido por `renderLojas` e pela estratégia de cauda (mix/curva/cauda da loja já fundida).
+- Para somar outra loja no futuro: só acrescentar uma entrada em `mergeLojas` (e o nome em `nomesLojas`). `CONFIG.totalLojas` controla o "X de N" do header.
 
 ## 10. Deploy (Render, static site)
 
