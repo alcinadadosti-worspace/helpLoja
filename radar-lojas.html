@@ -162,6 +162,20 @@ table.rank{border-collapse:collapse;width:100%;min-width:980px;font-size:12.5px}
 .acao input{margin-top:3px;accent-color:var(--verde)}
 .strat .fonte{font-size:10.5px;color:var(--tx3);margin-top:10px;font-style:italic}
 
+/* == régua "agora → meta" por estratégia == */
+.sviz{margin:11px 0 2px;max-width:540px}
+.sviz-h{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;margin-bottom:7px;align-items:baseline}
+.sviz-lb{color:var(--tx2);font-weight:600}
+.sviz-v{font-variant-numeric:tabular-nums;white-space:nowrap}
+.sviz-v .ar{color:var(--tx3);margin:0 2px}
+.sviz-v .al{color:var(--ouro2);font-weight:800}
+.sviz-track{position:relative;height:7px;border-radius:99px;background:linear-gradient(90deg,#2BB673 0%,#7FBF63 38%,#E8B84B 64%,#E16358 100%);opacity:.92}
+.sviz-span{position:absolute;top:0;bottom:0;background:#EAF4ED1f;border-radius:99px;box-shadow:inset 0 0 0 1px #EAF4ED38}
+.sviz-pin{position:absolute;top:50%}
+.sviz-pin.atual{width:13px;height:13px;border-radius:50%;background:var(--bg);border:3px solid var(--tx);transform:translate(-50%,-50%);box-shadow:0 0 0 1.5px #00000055}
+.sviz-pin.alvo{width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid var(--ouro2);top:-9px;transform:translateX(-50%);filter:drop-shadow(0 1px 1px #00000077)}
+.sviz-marks{display:flex;justify-content:space-between;font-size:9.5px;color:var(--tx3);margin-top:4px;letter-spacing:.03em}
+
 /* ====== WATERFALL DO GMV ====== */
 .waterfall{background:linear-gradient(180deg,#15281F,#101D18);border:1px solid var(--line2);border-radius:var(--r);padding:16px 18px;margin-bottom:14px}
 .wf-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:13px}
@@ -642,6 +656,7 @@ function gerarEstrategias(lojas, canal){
           titulo: 'Disciplina de desconto no caixa',
           diag: `${nm} concede <b>${fmtPct(l.descEtiqPct)}</b> de desconto médio sobre a etiqueta (${fmtBRL(l.descontos)} no período · <b>${fmtBRL(l.descPorBoleto,2)} por cupom</b>)` + (mediaCanal!=null?` — canal está em ${fmtPct(mediaCanal)}.`:'.'),
           meta: `Reduzir ${fmtN(pp,1)} p.p. → ~${fmtPct(alvo)} de desconto médio`,
+          viz: { label:'Desconto s/ etiqueta', fmt:'pct1', best:SPEC.desc.best, worst:SPEC.desc.worst, atual:l.descEtiqPct, alvo:alvo, marks:SPEC.desc.marks },
           acoes: [
             'Extrair no RetaguardaGB o desconto manual por operador/cupom e separar do desconto de campanha (B1, combos, encarte)',
             'Definir alçada: desconto manual acima de 10% só com autorização da gerente; acima de 15%, só você',
@@ -666,6 +681,7 @@ function gerarEstrategias(lojas, canal){
           titulo: 'Rotina de venda adicional (subir itens/cupom)',
           diag: `${nm} fecha <b>${fmtN(l.itensBoleto,2)} itens por cupom</b> com ticket de ${fmtBRL(l.ticket,2)} — o cliente leva o perfume e pouco mais. Item médio de Corpo & Banho na loja: <b>${fmtBRL(precoItem,2)}</b>.`,
           meta: `+${fmtN(delta,2)} item/cupom → ${fmtN(alvo,2)} itens por cupom`,
+          viz: { label:'Itens por cupom', fmt:'n2', best:SPEC.itens.best, worst:SPEC.itens.worst, atual:l.itensBoleto, alvo:alvo, marks:SPEC.itens.marks },
           acoes: [
             'Script obrigatório de 2º item no fechamento: oferta de até R$ 60 (sabonete em barra, body splash, hidratante) ligada ao perfume escolhido',
             'Régua “ninguém sai só com 1 item”: meta diária de itens/cupom por atendente, visível no quadro da loja',
@@ -688,6 +704,7 @@ function gerarEstrategias(lojas, canal){
           titulo: 'Plano de tráfego: mais gente passando no caixa',
           diag: `${nm} registra <b>${fmtN(l.boletosDia,1)} cupons/dia</b> (dias corridos)` + (media!=null?` — média do canal: ${fmtN(media,1)}.`:'.') + ` Com ${fmtPct(l.fidPct,1)} dos cupons identificados, a base de clientes é ouro parado para CRM.`,
           meta: `+${fmtN(delta,1)} cupom/dia → ${fmtN(alvo,1)}/dia`,
+          viz: { label:'Cupons por dia', fmt:'n1', best:Math.max(alvo,l.boletosDia)*1.3, worst:0, atual:l.boletosDia, alvo:alvo, marks:['fluxo forte','parado'] },
           acoes: [
             'Disparo WhatsApp segmentado pela base identificada (Clube Viva): aniversariantes do mês, inativos 90+ dias e compradores das marcas heróis da loja',
             'Reativação de inativos com oferta de retorno (amostra + condição na 2ª compra) — integrar com a rotina do Foco Atividade',
@@ -705,6 +722,7 @@ function gerarEstrategias(lojas, canal){
         titulo: 'Ativar o cartão presente (recarga zerada)',
         diag: `${nm} fechou o período com <b>R$ 0,00</b> de recarga de cartão presente — em ~6 meses que incluíram Mães e Namorados.`,
         meta: 'Meta inicial: 1% do GMV mensal em recargas',
+        viz: { label:'Recarga de cartão presente (% do GMV)', fmt:'pct1', best:2, worst:0, atual:0, alvo:1, marks:['meta ≥1%','zerado'] },
         acoes: [
           'Expor o cartão presente no caixa e na vitrine de datas (próxima grande: Dia dos Pais, 09/08)',
           'Oferta ativa no fechamento: “prefere levar um cartão presente e deixar a pessoa escolher?” quando o cliente está em dúvida',
@@ -719,6 +737,7 @@ function gerarEstrategias(lojas, canal){
         titulo: 'Fechar a régua de identificação (Clube Viva)',
         diag: `${nm} identifica <b>${fmtPct(l.fidPct)}</b> dos cupons — régua: ≥95% ótimo, ≥85% aceitável. Cada cupom não identificado é um cliente fora das campanhas de CRM.`,
         meta: `Subir para ≥95% de penetração`,
+        viz: { label:'Cupons identificados (Clube Viva)', fmt:'pct1', best:SPEC.fid.best, worst:SPEC.fid.worst, atual:l.fidPct, alvo:R.fidelidade.otimo, marks:SPEC.fid.marks },
         acoes: [
           'CPF antes de finalizar: travar o fluxo de caixa com a pergunta padrão, sem exceção',
           'Contador visível: % de identificação do dia no quadro da loja',
@@ -734,6 +753,7 @@ function gerarEstrategias(lojas, canal){
         titulo: 'Engrossar o mix de recorrência (make · skincare · capilar)',
         diag: `Em ${nm}, maquiagem + skincare + capilar somam só <b>${fmtPct(l.recorrPct)}</b> do faturamento. São as categorias que trazem o cliente de volta em 30–45 dias — perfumaria volta a cada 3–6 meses.`,
         meta: `Elevar recorrência para ≥${fmtN(R.recorrencia.atencao+2)}% do faturamento`,
+        viz: { label:'Recorrência (make·skin·cap)', fmt:'pct1', best:SPEC.recorr.best, worst:SPEC.recorr.worst, atual:l.recorrPct, alvo:R.recorrencia.atencao+2, marks:SPEC.recorr.marks },
         acoes: [
           'Ponto extra de skincare (Botik) e make (Intense, preço de entrada) na rota até o caixa',
           'Cross obrigatório: perfume feminino → oferta de batom/hidratante facial; masculino → pós-barba/cuidado',
@@ -749,6 +769,7 @@ function gerarEstrategias(lojas, canal){
         titulo: 'Reduzir trocas e devoluções',
         diag: `${nm} devolve <b>${fmtPct(l.trocasPct)}</b> da receita em trocas (${l.trocasQtd} ocorrências · ${fmtBRL(l.trocasValor)}). Acima de ${fmtPct(R.trocasPct.ok)} costuma indicar venda empurrada ou erro de indicação.`,
         meta: `Trazer para ≤${fmtPct(R.trocasPct.ok)} da receita`,
+        viz: { label:'Trocas (% da receita)', fmt:'pct1', best:SPEC.trocas.best, worst:SPEC.trocas.worst, atual:l.trocasPct, alvo:R.trocasPct.ok, marks:SPEC.trocas.marks },
         acoes: [
           'Registrar o motivo de cada troca (produto errado, presente, arrependimento, defeito) por 30 dias',
           'Reforçar prova/teste do produto antes do fechamento, principalmente em perfumaria',
@@ -763,6 +784,7 @@ function gerarEstrategias(lojas, canal){
         titulo: 'Enxugar a cauda longa do sortimento',
         diag: `${nm} tem <b>${s.abc.cauda.n} SKUs (${fmtPct(l.caudaPct,0)})</b> que venderam menos de R$ 100 no período inteiro — juntos, só ${fmtBRL(s.abc.cauda.fat)} (${fmtPct(s.abc.cauda.fat/l.fatPDF*100,1)} do faturamento). ${s.abc.qtd1} SKUs venderam exatamente 1 unidade.`,
         meta: 'Liberar espaço e capital dos SKUs sem giro',
+        viz: { label:'SKUs sem giro (cauda < R$100)', fmt:'pct0', best:10, worst:45, atual:l.caudaPct, alvo:R.caudaPct.ok, marks:['enxuto','inchado'] },
         acoes: [
           'Cruzar a cauda com o estoque atual: o que tem saldo parado entra em lista de ação',
           'Remanejar entre as lojas da rede: o que não gira aqui pode girar na loja onde a marca é forte',
@@ -777,6 +799,7 @@ function gerarEstrategias(lojas, canal){
         titulo: 'Blindar o abastecimento dos 20 heróis',
         diag: `Os 20 maiores SKUs respondem por <b>${fmtPct(l.top20share,0)}</b> do faturamento de ${nm}. Ruptura em qualquer um deles dói direto no resultado.`,
         meta: 'Ruptura zero nos top 20 da curva A',
+        viz: { label:'Concentração nos 20 heróis', fmt:'pct0', best:25, worst:55, atual:l.top20share, alvo:null, marks:['diluído','dependente'] },
         acoes: [
           'Checklist semanal de presença em gôndola dos top 20 (lista na aba Lojas)',
           'Estoque de segurança dedicado para os 5 primeiros',
@@ -807,6 +830,27 @@ function regua(val, sp){
   const pos = clamp((val - sp.best) / (sp.worst - sp.best), 0, 1) * 100;
   return `<div class="regua"><div class="track"><div class="pin" style="left:${pos.toFixed(1)}%"></div></div>
   <div class="marks"><span>${sp.marks[0]}</span><span>${sp.marks[1]}</span></div></div>`;
+}
+/* régua "agora → meta" de uma estratégia: posiciona atual e alvo no gradiente verde→âmbar→vermelho */
+const vfmt = (v,f) => f==='pct1'?fmtPct(v,1) : f==='pct0'?fmtPct(v,0) : f==='n2'?fmtN(v,2) : f==='n1'?fmtN(v,1) : fmtN(v);
+function svizHTML(z){
+  if (!z || z.atual==null || isNaN(z.atual)) return '';
+  const map = v => clamp((v - z.best)/(z.worst - z.best), 0, 1) * 100;
+  const pa = map(z.atual);
+  const temAlvo = z.alvo!=null && !isNaN(z.alvo);
+  const pv = temAlvo ? map(z.alvo) : null;
+  const lo = temAlvo ? Math.min(pa,pv) : pa, hi = temAlvo ? Math.max(pa,pv) : pa;
+  const col = pa<=34 ? 'var(--verde)' : pa<=67 ? 'var(--ambar)' : 'var(--verm)';
+  return `<div class="sviz">
+    <div class="sviz-h"><span class="sviz-lb">${esc(z.label)}</span>
+      <span class="sviz-v num">agora <b style="color:${col}">${vfmt(z.atual,z.fmt)}</b>${temAlvo?`<span class="ar">→</span>meta <b class="al">${vfmt(z.alvo,z.fmt)}</b>`:''}</span></div>
+    <div class="sviz-track">
+      ${temAlvo?`<div class="sviz-span" style="left:${lo.toFixed(1)}%;width:${Math.max(hi-lo,0.6).toFixed(1)}%"></div>`:''}
+      <div class="sviz-pin atual" style="left:${pa.toFixed(1)}%;border-color:${col}"></div>
+      ${temAlvo?`<div class="sviz-pin alvo" style="left:${pv.toFixed(1)}%"></div>`:''}
+    </div>
+    ${z.marks?`<div class="sviz-marks"><span>${esc(z.marks[0])}</span><span>${esc(z.marks[1])}</span></div>`:''}
+  </div>`;
 }
 const cls = (sp, v) => v==null||isNaN(v) ? '' : 'c-'+sp.estado(v).replace('warn','warn').replace('ok','ok').replace('bad','bad');
 
@@ -1091,6 +1135,7 @@ function renderEstrategias(lojas, canal, strats){
         </div>
         <p class="diag">${s.diag}</p>
         <p class="meta-l">⌖ ${esc(s.meta)}</p>
+        ${svizHTML(s.viz)}
         <div class="acoes">${s.acoes.map(a=>`<label class="acao"><input type="checkbox"> <span>${esc(a)}</span></label>`).join('')}</div>
         <p class="fonte">${esc(s.fonte)}</p>
       </div>`).join('')}</div>`;

@@ -1,6 +1,6 @@
 # CONTEXTO — RADAR LOJAS (handoff técnico)
 
-> Documento de continuidade. Permite retomar o desenvolvimento do `radar-lojas.html` em qualquer ambiente sem perder contexto. Última atualização: 12/06/2026.
+> Documento de continuidade. Permite retomar o desenvolvimento do `radar-lojas.html` em qualquer ambiente sem perder contexto. Última atualização: 15/06/2026.
 
 ---
 
@@ -75,7 +75,7 @@ Ordem interna: `<head>+CSS` → `<body>` estático → CDN scripts → `<script>
    - Giftcard (recarga=0): `impacto = 1% × gmvMes` (estimativa marcada).
    - Trocas (>1,5%): `impacto = pp acima da régua × receitaMes`.
    - Com 1 loja, réguas absolutas; com 2+ lojas o motor **recalibra automaticamente pela média do canal**.
-6. **Render** — 4 abas (Visão do canal / Lojas / Estratégias / Simulador): KPI pills, ranking com heatmap por coluna (direção configurada: desconto/trocas menor=melhor), cards de loja com **réguas de semáforo** (assinatura visual; `SPEC` mapeia valor→posição no gradiente verde→âmbar→vermelho), donut SVG de mix, barras da curva ABC, top 10 SKUs, chips de marcas, alertas; estratégias com checklist; simulador com 3 sliders (Δdesconto pp, Δitens/cupom, Δcupons/dia) e conta aberta + projeção mensal/anual; botão **"Copiar resumo p/ Slack"**.
+6. **Render** — 4 abas (Visão do canal / Lojas / Estratégias / Simulador): KPI pills, ranking com heatmap por coluna (direção configurada: desconto/trocas menor=melhor), cards de loja com **réguas de semáforo** (assinatura visual; `SPEC` mapeia valor→posição no gradiente verde→âmbar→vermelho), donut SVG de mix, barras da curva ABC, top 10 SKUs, chips de marcas, alertas; aba **Estratégias** abre com **waterfall do GMV** no topo (ver §12) + cards com checklist; simulador com 3 sliders (Δdesconto pp, Δitens/cupom, Δcupons/dia) e conta aberta + projeção mensal/anual; botão **"Copiar resumo p/ Slack"**.
 7. **SEED** — desde 12/06/2026 embute **as 7 lojas** (`SEED.pdfs[]` com meta do rodapé + itens minificados `[sku, nome, qtd, fat, custo, lucro]` de cada PDF, + `SEED.xlsx[]` com as 7 linhas de indicadores do CSV). App abre com o canal completo; re-upload de qualquer arquivo substitui a loja correspondente. Seed gerado pelo próprio parser do app via harness Node (`gen-seed.js`), com selo de rodapé exigido na geração.
 
 ## 5. Validações já executadas (não regredir)
@@ -152,3 +152,25 @@ Bugs encontrados rodando os arquivos reais da rede e corrigidos no `radar-lojas.
 - `render.yaml` na raiz (Blueprint): o build copia `radar-lojas.html` → `public/index.html` e publica só a pasta `public/` — este MD e quaisquer dados não vão para o site. Header `X-Robots-Tag: noindex` para não indexar em buscadores.
 - Repositório: https://github.com/alcinadadosti-worspace/helpLoja.git (os relatórios *.pdf/*.csv ficam fora por `.gitignore`).
 - **Atenção privacidade:** a app embute o SEED com os dados reais **das 7 lojas** (decisão do usuário em 12/06/2026); a URL do Render é pública para quem a tiver. O processamento de arquivos continua 100% client-side (nada é enviado a servidor).
+
+## 12. Aba Estratégias — visual (15/06/2026)
+
+O usuário pediu algo mais visual: a aba era só lista de cards-relatório (badge + diagnóstico + checklist). Dois acréscimos:
+
+### 12.1 Régua "agora → meta" por estratégia (o que o usuário pediu)
+
+**Cada card** ganha uma régua de semáforo (a assinatura da casa) mostrando onde a loja está e onde precisa chegar naquele indicador — não só texto.
+
+- **`gerarEstrategias`**: cada uma das 9 regras agora carrega um objeto `viz: { label, fmt, best, worst, atual, alvo, marks }`. `best`/`worst` são os extremos do gradiente (verde no `best`); reaproveitam o `SPEC` da aba Lojas onde existe (desc, itens, fid, trocas, recorr) e são inline nas demais (fluxo, cartão presente, cauda, heróis). `alvo:null` ⇒ só o pino "agora" (caso dos heróis/concentração top20).
+- **`svizHTML(z)`** (logo após `regua()`): posiciona `atual` (pino branco com anel da cor do estado) e `alvo` (bandeirinha dourada) no gradiente via `clamp((v-best)/(worst-best))`; faixa branca translúcida `.sviz-span` realça a distância a percorrer; cabeçalho `agora X → meta Y` (X colorido por posição: ≤34% verde, ≤67% âmbar, senão vermelho). Helper `vfmt(v,f)` formata por tipo (`pct1`/`pct0`/`n1`/`n2`). CSS no bloco `régua "agora → meta" por estratégia`. Render injeta `${svizHTML(s.viz)}` entre `.meta-l` e `.acoes`.
+- **Validação:** render no Chromium (filtro Coruripe) — 4 cards / 4 réguas, valores corretos (desconto 28,1%→25,1%, recorrência 7,4%→10%, cauda 33%→20%, itens 2,91→3,20), zero erros de console.
+
+### 12.2 Waterfall do GMV no topo da aba (resumo, commit `c9e2e75`)
+
+Cascata acima dos cards: *GMV hoje → +cada alavanca somável → GMV potencial*.
+
+- **`waterfallHTML(lojas, canal, strats, filtro)`** (perto de `renderEstrategias`): monta as linhas *GMV hoje → +cada alavanca somável → GMV potencial*. Cabeçalho mostra escopo + `+% vs hoje · R$/ano`; rodapé soma o ganho **indireto** (mix de recorrência, `somavel:false`) como nota **fora da cascata**. Helper `tituloCurto(t)` corta o título no `:` ou `(` para o rótulo.
+- **Escala/posição:** barras posicionadas por offset cumulativo, `left%`/`width%` sobre o `total` (= base + Σ alavancas). Base é barra neutra, incrementos coloridos por severidade (crítico=verm / atenção=âmbar / oportunidade=azul), total em ouro. Animação `wfGrow` (scaleX) respeita `prefers-reduced-motion`. CSS no bloco `WATERFALL DO GMV`; responsivo em `max-width:560px`.
+- **Respeita o filtro `#fStrat`:** *Todas as lojas* → base = `canal.gmvMes`, alavancas **agrupadas por título** (mantém ~4 barras limpas em vez de 29 estratégias); *uma loja* → base = `gmvMes` da loja, cada alavanca individual.
+- **`renderEstrategias` agora recebe `canal`** (assinatura `(lojas, canal, strats)`; atualizados o `onchange` e a chamada em `renderAll`). O box "Potencial identificado" passou a **refletir o escopo filtrado** (antes era sempre o total do canal).
+- **Validação:** `node --check` OK; teste isolado da matemática bate ao centavo (73.103 = 57.900 + 8.686 + 3.587 + 2.351 + 579 na 24303); render real no Chromium com o seed das 7 lojas sem erros de console — canal +25,9% (R$ 1.777.885/ano), filtro Coruripe R$ 149.130 → R$ 161.097 (+8,0%).
