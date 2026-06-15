@@ -162,6 +162,28 @@ table.rank{border-collapse:collapse;width:100%;min-width:980px;font-size:12.5px}
 .acao input{margin-top:3px;accent-color:var(--verde)}
 .strat .fonte{font-size:10.5px;color:var(--tx3);margin-top:10px;font-style:italic}
 
+/* ====== WATERFALL DO GMV ====== */
+.waterfall{background:linear-gradient(180deg,#15281F,#101D18);border:1px solid var(--line2);border-radius:var(--r);padding:16px 18px;margin-bottom:14px}
+.wf-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:13px}
+.wf-scope{font-size:11px;font-weight:800;color:var(--tx2);letter-spacing:.11em;text-transform:uppercase}
+.wf-gain{font-size:13px;font-weight:800;color:var(--verde)}
+.wf-rows{display:grid;gap:7px}
+.wf-row{display:grid;grid-template-columns:minmax(120px,200px) 1fr minmax(96px,auto);gap:12px;align-items:center}
+.wf-lb{font-size:12.5px;color:var(--tx2);display:flex;align-items:center;gap:7px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wf-dot{width:8px;height:8px;border-radius:2px;flex:none}
+.wf-track{position:relative;height:22px;background:linear-gradient(180deg,#0C161288,#0C161233);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.wf-bar{position:absolute;top:0;bottom:0;border-radius:5px;transform-origin:left center;animation:wfGrow .55s cubic-bezier(.2,.7,.2,1) both}
+.wf-bar.base{background:linear-gradient(180deg,var(--surf3),var(--surf2));box-shadow:inset 0 0 0 1px var(--line2)}
+.wf-bar.tot{background:linear-gradient(90deg,var(--ouro),var(--ouro2))}
+.wf-val{font-size:12.5px;font-weight:700;text-align:right;white-space:nowrap;color:var(--tx)}
+.wf-val.up{color:var(--verde)}
+.wf-row.total .wf-lb{color:var(--tx);font-weight:800}
+.wf-row.total .wf-val{color:var(--ouro2);font-size:14px;font-weight:800}
+.wf-foot{margin-top:11px;font-size:11.5px;color:var(--tx3);border-top:1px dashed var(--line);padding-top:9px}
+.wf-foot b{color:var(--ouro2)}
+@keyframes wfGrow{from{transform:scaleX(.0001)}to{transform:scaleX(1)}}
+@media(max-width:560px){.wf-row{grid-template-columns:minmax(82px,42%) 1fr minmax(70px,auto);gap:8px}.wf-lb{font-size:11px}.wf-val{font-size:11px}.wf-row.total .wf-val{font-size:12.5px}}
+
 /* ====== SIMULADOR ====== */
 .sim-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr));gap:16px;align-items:start}
 .sim-card{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:18px}
@@ -978,12 +1000,78 @@ function renderLojas(lojas){
 }
 
 /* ---------- Render: Estratégias ---------- */
-function renderEstrategias(lojas, strats){
+/* Título enxuto p/ rótulo da cascata: corta após ":" ou "(" */
+function tituloCurto(t){ return String(t).split(/[:(]/)[0].trim(); }
+
+/* Waterfall: GMV de hoje → soma das alavancas somáveis → GMV potencial (respeita o filtro de loja) */
+function waterfallHTML(lojas, canal, strats, filtro){
+  const cor = {critico:'var(--verm)',atencao:'var(--ambar)',oportunidade:'var(--azul)'};
+  const ord = {critico:0,atencao:1,oportunidade:2};
+  let base, steps, escopo;
+  if (filtro==='all'){
+    base = canal.gmvMes; escopo = 'Canal — todas as lojas';
+    const g = new Map();
+    strats.filter(s=>s.somavel&&s.impacto).forEach(s=>{
+      const k = tituloCurto(s.titulo);
+      const cur = g.get(k) || {titulo:k, impacto:0, sev:'oportunidade'};
+      cur.impacto += s.impacto;
+      if (ord[s.sev] < ord[cur.sev]) cur.sev = s.sev;
+      g.set(k, cur);
+    });
+    steps = [...g.values()];
+  } else {
+    const l = lojas.find(x=>x.codigo===filtro);
+    base = l ? l.gmvMes : null; escopo = l ? nomeLoja(l) : '';
+    steps = strats.filter(s=>s.somavel&&s.impacto&&s.loja.codigo===filtro)
+                  .map(s=>({titulo:tituloCurto(s.titulo), impacto:s.impacto, sev:s.sev}));
+  }
+  const indireto = strats.filter(s=>!s.somavel && s.impacto && (filtro==='all'||s.loja.codigo===filtro))
+                         .reduce((a,s)=>a+s.impacto,0);
+  if (base==null || !base || !steps.length) return '';
+  steps.sort((a,b)=>b.impacto-a.impacto);
+  const ganho = steps.reduce((a,s)=>a+s.impacto,0);
+  const total = base + ganho;
+  const pct = (total/base-1)*100;
+  let cum = base;
+  let rows = `
+    <div class="wf-row">
+      <div class="wf-lb">GMV hoje</div>
+      <div class="wf-track"><div class="wf-bar base" style="left:0;width:${base/total*100}%"></div></div>
+      <div class="wf-val num">${fmtBRL(base)}</div>
+    </div>`;
+  for (const s of steps){
+    const left = cum/total*100, w = s.impacto/total*100;
+    rows += `
+      <div class="wf-row">
+        <div class="wf-lb"><span class="wf-dot" style="background:${cor[s.sev]}"></span>${esc(s.titulo)}</div>
+        <div class="wf-track"><div class="wf-bar step" style="left:${left}%;width:${w}%;background:${cor[s.sev]}"></div></div>
+        <div class="wf-val num up">+ ${fmtBRL(s.impacto)}</div>
+      </div>`;
+    cum += s.impacto;
+  }
+  rows += `
+    <div class="wf-row total">
+      <div class="wf-lb">GMV potencial</div>
+      <div class="wf-track"><div class="wf-bar tot" style="left:0;width:100%"></div></div>
+      <div class="wf-val num">${fmtBRL(total)}</div>
+    </div>`;
+  return `
+    <div class="waterfall">
+      <div class="wf-head">
+        <span class="wf-scope">${esc(escopo)}</span>
+        <span class="wf-gain num">+${fmtPct(pct,1)} vs hoje · ${fmtBRL(ganho*12)}/ano</span>
+      </div>
+      <div class="wf-rows">${rows}</div>
+      ${indireto?`<div class="wf-foot">+ Mix de recorrência soma <b>~${fmtBRL(indireto)}/mês</b> de ganho indireto, fora da cascata.</div>`:''}
+    </div>`;
+}
+
+function renderEstrategias(lojas, canal, strats){
   const v = $('#view-estrategias');
   if (!strats.length){ v.innerHTML = `<div class="empty"><b>Nenhuma estratégia gerada ainda.</b><br>Carregue os relatórios — o motor cruza cada indicador com a régua e prioriza por impacto.</div>`; return; }
-  const pot = strats.filter(s=>s.somavel&&s.impacto).reduce((s,x)=>s+x.impacto,0);
   const filtro = $('#fStrat') ? $('#fStrat').value : 'all';
   const list = strats.filter(s => filtro==='all' || s.loja.codigo===filtro);
+  const pot = list.filter(s=>s.somavel&&s.impacto).reduce((s,x)=>s+x.impacto,0);
   v.innerHTML = `
     <div class="strat-top">
       <div class="potencial"><div class="lb">Potencial identificado · alavancas aritméticas</div>
@@ -993,6 +1081,7 @@ function renderEstrategias(lojas, strats){
         ${lojas.map(l=>`<option value="${l.codigo}" ${filtro===l.codigo?'selected':''}>${esc(nomeLoja(l))}</option>`).join('')}
       </select>
     </div>
+    ${waterfallHTML(lojas, canal, strats, filtro)}
     <div class="strats">${list.map(s=>`
       <div class="strat ${s.sev}">
         <div class="top">
@@ -1005,7 +1094,7 @@ function renderEstrategias(lojas, strats){
         <div class="acoes">${s.acoes.map(a=>`<label class="acao"><input type="checkbox"> <span>${esc(a)}</span></label>`).join('')}</div>
         <p class="fonte">${esc(s.fonte)}</p>
       </div>`).join('')}</div>`;
-  $('#fStrat').onchange = () => renderEstrategias(lojas, strats);
+  $('#fStrat').onchange = () => renderEstrategias(lojas, canal, strats);
 }
 
 /* ---------- Render: Simulador ---------- */
@@ -1083,7 +1172,7 @@ function renderAll(){
   renderChips(lojas);
   renderCanal(lojas, canal, strats);
   renderLojas(lojas);
-  renderEstrategias(lojas, strats);
+  renderEstrategias(lojas, canal, strats);
   renderSimulador(lojas, canal);
 }
 
