@@ -231,12 +231,13 @@ Pedido aprovado: a maior análise possível **sem dados novos**, usando o per-SK
 
 ## 16. Aba Lucro + correlação (15/06/2026)
 
-Pedido: construir as **4 análises novas** propostas (lente de lucro, mix por categoria, bridge de drivers, correlação) — usuário pediu todas. Nova aba **Lucro** (após Sortimento) → **6 abas**. `aggProfit(lojas)` agrega fat/lucro por loja / categoria / marca / cat×loja dos `abc.its` (exclui PRM). 4 blocos:
+Pedido: construir as **4 análises novas** propostas (lente de lucro, mix por categoria, bridge de drivers, correlação) — usuário pediu todas. Nova aba **Lucro** (após Sortimento) → **6 abas**. `aggProfit(lojas)` agrega fat/lucro por loja / categoria / marca / cat×loja dos `abc.its` (exclui PRM). 5 blocos:
 
 1. **Onde o lucro nasce** — lucro bruto total (~R$ 2,1M*), barras por loja/categoria/marca com margem%, + callout de divergência receita×lucro (categoria que mais muda de rank entre faturamento e lucro).
 2. **Lucro por cupom** — lucro ÷ boletos por loja vs canal (qualidade da transação).
 3. **Bridge de drivers** (seletor `#fBridge`, estado `bridgeSel`) — decompõe o GMV da loja vs a **loja-média do canal** em **cupons × itens/cupom × valor-do-item**. *Math:* decomposição sequencial; **`effVmi` usa `bItens` (não `canalItens`)** para absorver a interação cesta×valor — senão sobra um termo e não fecha. **Verificado: soma exata do total nas 6 lojas.** Tudo via CSV (sem asterisco do ABC).
 4. **Mix por categoria cross-store** — heatmap loja × categoria; célula = % da categoria no faturamento da loja; cor = **índice vs canal** (verde ≥ 1,20× super-indexa / vermelho ≤ 0,80× subindexa).
+5. **Concentração e risco de lucro** (add. da reinspeção) — Gini/Pareto sobre o **lucro** por SKU vs receita (via `crossSKU`, PRM fora): 80% do lucro vem de ~17% dos SKUs (≈ igual à receita 18% → **baixo risco de concentração de lucro**), top-20 = 20% do lucro; lista de motores de lucro + Gini lucro vs receita por loja. Nuance: **ARBO** (campeã de "margem vaza") é o **#2 motor de lucro absoluto** — por isso a lente de lucro importa.
 
 **Correlação (bloco 6 da aba Análise):** `pearson()`, matriz 7×7 entre indicadores das lojas (fluxo/ticket/cesta/desconto/fidelidade/recorrência/margem), cor por sinal×força. Callout: **desconto × fluxo = 0,18** (baixo → desconto NÃO compra movimento) vs **desconto × cesta = 0,80** (parece comprar cesta). Caveat forte: **n=6**, a micro-loja (outlier) pesa, confirmar com dado mensal.
 

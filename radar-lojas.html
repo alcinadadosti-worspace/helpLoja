@@ -1678,7 +1678,25 @@ function renderLucro(lojas, canal){
     <p class="note">Célula = % daquela categoria no faturamento da loja; cor = índice vs o peso da categoria no canal (verde ≥ 1,20× · vermelho ≤ 0,80×). PRM fora.</p>
   </div>`;
 
-  v.innerHTML = b1 + b2 + b3 + b4;
+  /* 5 · Concentração e risco de lucro */
+  const sku=crossSKU(comPdf);
+  const skuArr=[...sku.values()].filter(e=>e.totLucro>0);
+  const totLucroPos=skuArr.reduce((s,e)=>s+e.totLucro,0)||1;
+  const topLuc=[...skuArr].sort((a,b)=>b.totLucro-a.totLucro);
+  const top20Luc=topLuc.slice(0,20).reduce((s,e)=>s+e.totLucro,0)/totLucroPos*100;
+  const parLuc=pareto80(skuArr.map(e=>e.totLucro)), parRec=pareto80(skuArr.map(e=>e.totFat));
+  const perStore=byGmv.map(l=>{ const s=(state.efetivas&&state.efetivas.get(l.codigo))||state.stores.get(l.codigo); const its=s.abc.its.filter(it=>!/\bPRM\b/i.test(it.nome)); return {nome:nomeLoja(l), gFat:gini(its.map(i=>i.fat)), gLuc:gini(its.map(i=>Math.max(0,i.lucro))), merged:l.mergedCods&&l.mergedCods.length>1}; });
+  const b5=`<div class="an-sec"><div class="sec-t">5 · Concentração e risco de lucro <span class="vtag ${top20Luc>=45?'ruim':top20Luc>=30?'medio':'bom'}">top 20 = ${fmtPct(top20Luc,0)} do lucro</span></div>
+    <p class="an-lead">A receita já é concentrada — o <b>lucro</b> costuma ser ainda mais. <b>80% do lucro</b> do canal vem de <b>${fmtPct(parLuc,0)} dos SKUs</b> (vs ${fmtPct(parRec,0)} para a receita). Quanto mais concentrado, maior o risco se um motor de lucro entrar em ruptura.</p>
+    <div class="lucro-cols">
+      <div><div class="mini-t">Motores de lucro — top 12 SKUs</div><table class="sku-tbl"><tbody>${topLuc.slice(0,12).map(e=>`<tr><td><div class="pnome">${esc(e.nome)}</div><div class="pmarca">${esc(e.marca||'')}</div></td><td class="num"><b style="color:var(--ouro2)">${fmtBRL(e.totLucro)}</b><div class="pmarca">${fmtPct(e.totLucro/totLucroPos*100,1)} do lucro</div></td></tr>`).join('')}</tbody></table></div>
+      <div><div class="mini-t">Receita × lucro: o que concentra mais? (Gini por loja)</div><div class="hbars">${perStore.map(p=>`<div class="hbar"><div class="hl">${esc(p.nome)}${p.merged?'*':''} <small>rec ${fmtN(p.gFat,2)}</small></div><div class="ht"><div class="hf" style="width:${(p.gLuc*100).toFixed(1)}%;background:${p.gLuc>p.gFat?'linear-gradient(90deg,#E16358,#E8B84B)':'linear-gradient(90deg,#2BB673,#34C77B)'}"></div></div><div class="hv">lucro ${fmtN(p.gLuc,2)}</div></div>`).join('')}</div>
+      <div class="pmarca" style="margin-top:8px">Barra = Gini do lucro. <span style="color:var(--verm)">Vermelho</span> quando o lucro concentra <b>mais</b> que a receita — loja mais frágil a ruptura de um campeão.</div></div>
+    </div>
+    <p class="note">Gini/Pareto sobre o lucro por SKU (lucro &gt; 0). "Risco" = se um campeão de lucro rompe, a perda é proporcional à fatia dele. PRM fora; Coruripe com asterisco.</p>
+  </div>`;
+
+  v.innerHTML = b1 + b2 + b3 + b4 + b5;
   const sb=$('#fBridge'); if(sb) sb.onchange=e=>{ bridgeSel=e.target.value; renderLucro(lojas, canal); };
 }
 
