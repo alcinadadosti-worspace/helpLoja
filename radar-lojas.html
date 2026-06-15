@@ -227,6 +227,27 @@ table.rank{border-collapse:collapse;width:100%;min-width:980px;font-size:12.5px}
 .mvchip{display:inline-flex;align-items:center;font-size:10.5px;color:var(--tx2);background:var(--surf3);border:1px solid var(--line);border-radius:6px;padding:2px 7px;white-space:nowrap}
 .mvchip.ger{color:var(--ouro2);border-color:#D9B25F55;background:#D9B25F12;font-weight:700}
 
+/* ====== SORTIMENTO (SKU cruzado entre lojas) ====== */
+.sku-tbl{width:100%;border-collapse:collapse;font-size:12px;max-width:1000px}
+.sku-tbl th{text-align:left;color:var(--tx3);font-size:10px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;padding:6px 8px;border-bottom:1px solid var(--line)}
+.sku-tbl td{padding:7px 8px;border-bottom:1px solid #1B312833;vertical-align:top}
+.sku-tbl .num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sku-tbl .pnome{font-weight:600;color:var(--tx);line-height:1.3}
+.sku-tbl .pmarca{color:var(--tx3);font-size:10px}
+.sku-tbl .c-bad{color:var(--verm)}
+.skuchip{display:inline-flex;gap:5px;font-size:10.5px;background:var(--surf3);border:1px solid var(--line);border-radius:6px;padding:2px 7px;margin:1px 3px 1px 0;white-space:nowrap}
+.skuchip b{color:var(--tx);font-weight:600}
+.skuchip.lo{border-color:#34C77B55;color:var(--verde)}
+.skuchip.hi{border-color:#E1635855;color:var(--verm)}
+.quad{display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:12px;max-width:1000px}
+.quad-card{background:var(--surf);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+.quad-card.hot{border-color:#E8B84B66;background:linear-gradient(180deg,#1c2a1f,var(--surf))}
+.quad-card .qt{font-weight:800;font-size:13px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.quad-card .qmeta{font-size:10.5px;color:var(--tx3);margin:5px 0 9px;line-height:1.45}
+.quad-card .qsku{font-size:11.5px;color:var(--tx2);padding:4px 0;border-top:1px solid #1B312833;display:flex;justify-content:space-between;gap:10px}
+.quad-card .qsku b{color:var(--tx);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.quad-card .qsku span{white-space:nowrap;color:var(--tx3);font-variant-numeric:tabular-nums}
+
 /* ====== DIAGNÓSTICO (narrativa + gargalos) ====== */
 .narr{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin:4px 0 16px;max-width:980px}
 .narr h3{font-size:12px;text-transform:uppercase;letter-spacing:.11em;color:var(--tx2);margin-bottom:9px}
@@ -301,6 +322,7 @@ footer{padding:26px clamp(16px,4vw,40px);border-top:1px solid var(--line);color:
 <nav class="tabs" role="tablist">
   <button class="tab on" data-v="canal">Diagnóstico</button>
   <button class="tab" data-v="analise">Análise</button>
+  <button class="tab" data-v="sortimento">Sortimento</button>
   <button class="tab" data-v="lojas">Lojas</button>
   <button class="tab" data-v="estrategias">Benchmark e achados</button>
 </nav>
@@ -308,6 +330,7 @@ footer{padding:26px clamp(16px,4vw,40px);border-top:1px solid var(--line);color:
 <main>
   <section class="view on" id="view-canal"></section>
   <section class="view" id="view-analise"></section>
+  <section class="view" id="view-sortimento"></section>
   <section class="view" id="view-lojas"></section>
   <section class="view" id="view-estrategias"></section>
 </main>
@@ -1355,6 +1378,113 @@ function renderAnalise(lojas, canal, findings){
   v.innerHTML = b1 + b2 + b3 + b4 + b5;
 }
 
+/* ---------- Render: Sortimento (SKU cruzado entre lojas) ---------- */
+function crossSKU(lojas){
+  const map = new Map();
+  for (const l of lojas){
+    const s=(state.efetivas&&state.efetivas.get(l.codigo))||state.stores.get(l.codigo);
+    if(!s||!s.abc||!s.abc.its) continue;
+    for (const it of s.abc.its){
+      let e=map.get(it.sku);
+      if(!e){ e={sku:it.sku, nome:it.nome, marca:it.marca, cat:it.cat, st:{}, totFat:0, totQtd:0, totLucro:0, bf:0}; map.set(it.sku,e); }
+      e.st[l.codigo]={fat:it.fat, qtd:it.qtd, lucro:it.lucro, prc:it.prc, curva:it.curva};
+      e.totFat+=it.fat; e.totQtd+=it.qtd; e.totLucro+=it.lucro;
+      if(it.fat>e.bf){ e.bf=it.fat; e.nome=it.nome; e.marca=it.marca; }
+    }
+  }
+  return map;
+}
+let gapSel = null;
+function renderSortimento(lojas, canal){
+  const v=$('#view-sortimento');
+  const comPdf=lojas.filter(l=>{ const s=(state.efetivas&&state.efetivas.get(l.codigo))||state.stores.get(l.codigo); return s&&s.abc&&s.abc.its; });
+  if(comPdf.length<2){ v.innerHTML=`<div class="empty"><b>A análise de sortimento precisa de ≥ 2 lojas com PDF do ABC.</b><br>Ela cruza os SKUs entre as lojas — lacunas de distribuição, margem × giro e preço do mesmo produto.</div>`; return; }
+  const map=crossSKU(comPdf);
+  const byGmv=[...comPdf].sort((a,b)=>(b.gmvMes||0)-(a.gmvMes||0));
+  if(!gapSel || !comPdf.find(l=>l.codigo===gapSel)) gapSel=byGmv[0].codigo;
+  const Lsel=comPdf.find(l=>l.codigo===gapSel);
+  const nomeOf=cod=>esc(nomeLoja(comPdf.find(l=>l.codigo===cod)||{codigo:cod}));
+  const gmvOf=cod=>{ const l=comPdf.find(x=>x.codigo===cod); return l?l.gmvMes:null; };
+
+  /* 1 · Lacunas de distribuição */
+  const gaps=[];
+  for (const e of map.values()){
+    const here=e.st[gapSel];
+    const hereFat=here?here.fat:0;
+    if(hereFat>=100) continue;
+    const heroes=Object.entries(e.st).filter(([cod,d])=>cod!==gapSel && d.curva==='A' && d.fat>=500);
+    if(!heroes.length) continue;
+    const ests=heroes.map(([cod,d])=>{ const g=gmvOf(cod); return (g&&Lsel.gmvMes)?d.fat*(Lsel.gmvMes/g):d.fat; }).sort((a,b)=>a-b);
+    gaps.push({e, hereFat, heroes, est:ests[Math.floor(ests.length/2)], absent:!here});
+  }
+  gaps.sort((a,b)=>b.est-a.est);
+  const potGap=gaps.reduce((s,g)=>s+g.est,0);
+  const b1=`<div class="an-sec"><div class="sec-t">1 · Lacunas de distribuição <span class="vtag medio">heróis que faltam aqui</span></div>
+    <p class="an-lead">SKUs que são <b>curva A em outra loja da rede</b> (vendem bem — prova interna) mas estão <b>ausentes ou parados</b> nesta loja. A ação mais direta do sortimento: levar/empurrar o que já funciona em casa.</p>
+    <div class="strat-top"><select class="sel" id="fGap">${byGmv.map(l=>`<option value="${l.codigo}" ${gapSel===l.codigo?'selected':''}>${esc(nomeLoja(l))}</option>`).join('')}</select>
+      <span class="chip">${gaps.length} lacunas · potencial estimado <b>${fmtBRL(potGap)}</b> no período</span></div>
+    <table class="sku-tbl"><thead><tr><th>Produto</th><th>Herói em (faturamento no período)</th><th class="num">Aqui</th><th class="num">Potencial est.</th></tr></thead><tbody>
+    ${gaps.slice(0,15).map(g=>`<tr>
+      <td><div class="pnome">${esc(g.e.nome)}</div><div class="pmarca">${esc(g.e.marca||'')}</div></td>
+      <td>${g.heroes.sort((a,b)=>b[1].fat-a[1].fat).slice(0,3).map(([cod,d])=>`<span class="skuchip"><b>${nomeOf(cod)}</b> ${fmtBRL(d.fat)}</span>`).join('')}</td>
+      <td class="num">${g.absent?'<span class="c-bad">não vende</span>':fmtBRL(g.hereFat)}</td>
+      <td class="num"><b style="color:var(--ouro2)">${fmtBRL(g.est)}</b></td></tr>`).join('')}
+    </tbody></table>
+    <p class="note">"Herói" = curva A (top 80% do faturamento) na outra loja, ≥ R$ 500 no período. Potencial estimado = venda na loja-herói ajustada pelo tamanho desta loja (GMV) — ordem de grandeza, não promessa.</p>
+  </div>`;
+
+  /* 2 · Margem × giro */
+  const arr=[...map.values()].filter(e=>e.totFat>0 && e.totLucro/e.totFat<0.985); // exclui brinde/custo-zero (margem ~100%) que poluía as "jóias"
+  const qtds=arr.map(e=>e.totQtd).sort((a,b)=>a-b);
+  const medQtd=qtds[Math.floor(qtds.length/2)]||0;
+  const mSplit=canal.margem||60;
+  const quad={estrela:[],vaza:[],joia:[],cauda:[]};
+  for (const e of arr){
+    const m=e.totFat?e.totLucro/e.totFat*100:0;
+    const giroAlto=e.totQtd>=medQtd, margAlta=m>=mSplit;
+    quad[giroAlto&&margAlta?'estrela':giroAlto?'vaza':margAlta?'joia':'cauda'].push({e,m});
+  }
+  const qdef=[
+    {k:'vaza', t:'Margem vaza', sub:'giro alto · margem baixa · renegociar custo / cortar desconto', tag:'ruim', sort:(a,b)=>b.e.totFat-a.e.totFat, metric:x=>`${fmtPct(x.m,0)} · ${fmtBRL(x.e.totFat)}`},
+    {k:'joia', t:'Jóias escondidas', sub:'margem alta · giro baixo · expor e empurrar mais', tag:'bom', sort:(a,b)=>b.e.totFat-a.e.totFat, metric:x=>`${fmtPct(x.m,0)} · ${fmtBRL(x.e.totFat)}`},
+    {k:'estrela', t:'Estrelas', sub:'giro alto · margem alta · proteger abastecimento', tag:'bom', sort:(a,b)=>b.e.totFat-a.e.totFat, metric:x=>`${fmtBRL(x.e.totFat)}`},
+    {k:'cauda', t:'Cauda', sub:'giro baixo · margem baixa · candidatos a corte', tag:'medio', sort:(a,b)=>b.e.totFat-a.e.totFat, metric:x=>`${fmtBRL(x.e.totFat)}`}
+  ];
+  const b2=`<div class="an-sec"><div class="sec-t">2 · Margem × giro <span class="vtag medio">matriz do sortimento</span></div>
+    <p class="an-lead">Cada SKU da rede por <b>giro</b> (unidades) × <b>margem</b> (corte na margem do canal, ${fmtPct(mSplit,0)}). As duas caixas que importam: onde a <b>margem vaza</b> (vende muito, ganha pouco) e as <b>jóias</b> (ganham muito, vendem pouco — empurrar).</p>
+    <div class="quad">${qdef.map(q=>{ const list=quad[q.k].sort(q.sort); const sf=list.reduce((s,x)=>s+x.e.totFat,0);
+      return `<div class="quad-card${q.k==='vaza'||q.k==='joia'?' hot':''}"><div class="qt">${q.t}<span class="vtag ${q.tag}">${list.length} SKUs</span></div>
+        <div class="qmeta">${q.sub} · ${fmtBRL(sf)}</div>
+        ${list.slice(0,4).map(x=>`<div class="qsku"><b>${esc(x.e.nome)}</b><span>${q.metric(x)}</span></div>`).join('')||'<div class="qsku" style="color:var(--tx3)">—</div>'}</div>`; }).join('')}</div>
+  </div>`;
+
+  /* 3 · Mesmo SKU, preço diferente */
+  const price=[];
+  for (const e of map.values()){
+    const sts=Object.entries(e.st).filter(([c,d])=>d.qtd>=5 && d.prc>0);
+    if(sts.length<2) continue;
+    const prcs=sts.map(([c,d])=>({c,prc:d.prc}));
+    const min=prcs.reduce((a,b)=>b.prc<a.prc?b:a), max=prcs.reduce((a,b)=>b.prc>a.prc?b:a);
+    const spread=(max.prc-min.prc)/min.prc*100;
+    if(spread<15) continue;
+    price.push({e,prcs,min,max,spread});
+  }
+  price.sort((a,b)=>b.spread*b.e.totFat-a.spread*a.e.totFat);
+  const b3=`<div class="an-sec"><div class="sec-t">3 · Mesmo SKU, preço diferente entre lojas <span class="vtag medio">consistência de preço</span></div>
+    <p class="an-lead">Produtos vendidos em ≥ 2 lojas com <b>preço médio realizado</b> (faturamento ÷ unidades, já líquido de desconto) bem diferente. Pode ser desconto solto numa loja ou preço desalinhado — vale checar.</p>
+    <table class="sku-tbl"><thead><tr><th>Produto</th><th>Preço médio por loja</th><th class="num">Variação</th></tr></thead><tbody>
+    ${price.slice(0,12).map(p=>`<tr>
+      <td><div class="pnome">${esc(p.e.nome)}</div><div class="pmarca">${esc(p.e.marca||'')}</div></td>
+      <td>${p.prcs.sort((a,b)=>a.prc-b.prc).map(x=>`<span class="skuchip ${x.c===p.min.c?'lo':x.c===p.max.c?'hi':''}"><b>${nomeOf(x.c)}</b> ${fmtBRL(x.prc,2)}</span>`).join('')}</td>
+      <td class="num"><b>${fmtPct(p.spread,0)}</b></td></tr>`).join('')}
+    </tbody></table>
+    <p class="note">Preço médio realizado (pós-desconto), só SKUs com ≥ 5 unidades em cada loja comparada. ${comPdf.some(l=>l.mergedCods&&l.mergedCods.length>1)?'Coruripe: ABC somado (5905+24670) — o preço médio dela pode misturar as duas fontes.':''}</p>
+  </div>`;
+
+  v.innerHTML = b1 + b2 + b3;
+  $('#fGap').onchange = e => { gapSel = e.target.value; renderSortimento(lojas, canal); };
+}
+
 /* ---------- Orquestração ---------- */
 function renderAll(){
   const lojas = todasLojas();
@@ -1363,6 +1493,7 @@ function renderAll(){
   renderChips(lojas);
   renderCanal(lojas, canal, findings);
   renderAnalise(lojas, canal, findings);
+  renderSortimento(lojas, canal);
   renderLojas(lojas);
   renderEstrategias(lojas, canal, findings);
 }

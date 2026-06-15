@@ -6,7 +6,7 @@
 
 ## 1. O que é
 
-**Radar Lojas** é uma aplicação standalone (arquivo HTML único, processamento 100% client-side no navegador) de **diagnóstico do canal loja** do Grupo Alcina Maria (rede O Boticário, Penedo/AL). O usuário arrasta relatórios brutos exportados do ERP e a app produz uma **análise, não uma prescrição**: leitura do canal, benchmark entre as lojas, curva ABC e mix por loja, achados por loja com materialidade em R$ e ressalvas, **uma aba de análise estruturada (Gini/Pareto/Lorenz, coef. de variação, fronteira peer) e contexto de movimentação de equipe (§14)**. **Remodelada de motor de estratégias → ferramenta de diagnóstico em 15/06/2026 (ver §13) — saíram checklist de ações, "potencial total", waterfall e simulador.**
+**Radar Lojas** é uma aplicação standalone (arquivo HTML único, processamento 100% client-side no navegador) de **diagnóstico do canal loja** do Grupo Alcina Maria (rede O Boticário, Penedo/AL). O usuário arrasta relatórios brutos exportados do ERP e a app produz uma **análise, não uma prescrição**: leitura do canal, benchmark entre as lojas, curva ABC e mix por loja, achados por loja com materialidade em R$ e ressalvas, **uma aba de análise estruturada (Gini/Pareto/Lorenz, coef. de variação, fronteira peer), contexto de movimentação de equipe (§14) e análise de sortimento por SKU cruzado entre lojas (§15)**. **Remodelada de motor de estratégias → ferramenta de diagnóstico em 15/06/2026 (ver §13) — saíram checklist de ações, "potencial total", waterfall e simulador.**
 
 - **Stack:** HTML/CSS/JS vanilla + pdf.js 3.11.174 (cdnjs) + SheetJS 0.18.5 (cdnjs). Sem build, sem servidor, sem localStorage (estado só em memória).
 - **Padrão da casa:** mesmo modelo das ferramentas Foco Atividade e painel-vendas (arquivo único que processa arquivos reais no browser).
@@ -212,3 +212,17 @@ Pedido: *"use de estratégia muito bem elaborada pra descobrir onde estamos indo
 **Limitação honesta (dita na própria UI):** dados são **agregados do período** (1 nº/loja) — dá para *sinalizar* troca de equipe, não *isolar* o impacto. Para medir, precisa de vendas **por mês** (pré/pós cada data). **Hipótese forte:** Palmeira perdeu a **gerente em 02/02** e é a pior da rede em **cesta e identificação** — os indicadores que um gerente cobra; pode ser transitório (ramp-up), não estrutural.
 
 **Helpers novos:** `gini`, `cvar`, `pareto80`, `lorenzSVG`, `renderAnalise`, const `MOVIMENTACOES`. CSS: bloco "ANÁLISE". **Validação:** `node --check` OK; Chromium (seed 7 lojas) — 5 seções, 6 Gini+Lorenz, 18 barras, espelho, 9 chips de equipe, zero erros de console.
+
+## 15. Aba Sortimento — SKU cruzado entre lojas (15/06/2026)
+
+Pedido aprovado: a maior análise possível **sem dados novos**, usando o per-SKU do ABC (cada item tem `sku`/`custo`/`lucro`/`prc`/`curva`/`marca` — `combinarABC` re-roda `analisarABC`, então a Coruripe fundida também). Nova aba **Sortimento** (entre Análise e Lojas) — **5 abas agora**. `crossSKU(lojas)` monta `Map(sku → {nome, marca, st:{loja:{fat,qtd,lucro,prc,curva}}, totFat/totQtd/totLucro})`. 3 blocos:
+
+1. **Lacunas de distribuição** (seletor `#fGap`, estado `gapSel`) — SKUs **curva A (≥ R$ 500) em outra loja** mas **ausentes ou < R$ 100** na loja selecionada. Potencial est. = fat na loja-herói × (GMV da loja ÷ GMV da herói), mediana entre heróis. Coruripe: 41 lacunas ~R$ 70k; **Palmeira: 76 lacunas ~R$ 114k** (coerente com o buraco de gerência).
+2. **Margem × giro** — matriz tipo BCG: cada SKU por giro (qtd vs mediana) × margem (vs `canal.margem`). 4 quadrantes (estrela / margem-vaza / jóia / cauda) com top SKUs. **Exclui itens de margem ≥ 98,5%** (brindes/custo-zero, que apareciam como "jóias" de R$ 44); jóias ordenadas por faturamento.
+3. **Mesmo SKU, preço diferente** — SKUs em ≥ 2 lojas (qtd ≥ 5 em cada) com spread do **preço médio realizado** (`prc` = fat/qtd, pós-desconto) ≥ 15%, ordenado por spread × fat.
+
+**Helpers:** `crossSKU`, `renderSortimento`, `let gapSel`. CSS: bloco "SORTIMENTO" (`.sku-tbl`, `.skuchip`, `.quad`). `#fGap` re-renderiza direto (select, sem corrida de blur do rename).
+
+**Validação:** `node --check` OK; Chromium — 3 seções, 15 lacunas, 4 quadrantes, 12 preços, seletor troca loja; bugcheck completo (5 abas + rename + XSS) **zero erros**.
+
+**Nota de dado a confirmar:** muitas lacunas e jóias são itens **"PRM"**. Confirmar com o usuário se PRM = linha **Premium** (produto real → lacuna estrutural válida) ou **brinde/kit de campanha** (→ a "lacuna" pode ser temporal: a campanha rodou numa loja e não na outra). A heurística de brinde do parser (`prc<5 || \bPRM\b`) pode estar marcando Premium como brinde — vale revisitar.
