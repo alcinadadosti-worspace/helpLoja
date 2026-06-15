@@ -247,6 +247,19 @@ table.rank{border-collapse:collapse;width:100%;min-width:980px;font-size:12.5px}
 .quad-card .qsku{font-size:11.5px;color:var(--tx2);padding:4px 0;border-top:1px solid #1B312833;display:flex;justify-content:space-between;gap:10px}
 .quad-card .qsku b{color:var(--tx);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .quad-card .qsku span{white-space:nowrap;color:var(--tx3);font-variant-numeric:tabular-nums}
+.hm{border-collapse:separate;border-spacing:0;font-size:11px}
+.hm th{font-weight:700;color:var(--tx3);font-size:9.5px;padding:4px;text-align:center;white-space:nowrap}
+.hm th.sku{text-align:left}
+.hm td{padding:1px}
+.hm td.sku{text-align:left;max-width:250px;overflow:hidden;white-space:nowrap}
+.hm td.sku .pmarca{font-size:9.5px;color:var(--tx3)}
+.hm .cell{display:block;padding:5px 7px;border-radius:4px;font-size:9.5px;font-variant-numeric:tabular-nums;text-align:center;color:var(--tx2)}
+.hm .he{background:#34C77B33;color:#a7ebc6;font-weight:700}
+.hm .ve{background:#E8B84B22;color:#e8cd8f}
+.hm .mo{background:#E1635816;color:#cf9a93}
+.hm .au{background:#0C161255;color:#5b7468}
+.scatter{display:block;width:100%;height:auto;background:linear-gradient(180deg,#101d1855,transparent);border:1px solid var(--line);border-radius:10px;margin-bottom:12px;max-width:880px}
+.rbar{display:block;margin-bottom:2px}
 
 /* ====== DIAGNÓSTICO (narrativa + gargalos) ====== */
 .narr{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin:4px 0 16px;max-width:980px}
@@ -1395,6 +1408,34 @@ function crossSKU(lojas){
   }
   return map;
 }
+/* dispersão margem × giro: x=giro (log), y=margem, raio=faturamento, cor=quadrante */
+function scatterSVG(pts, mSplit, medQtd, maxQtd){
+  const W=760,H=300, pad={l:30,r:14,t:16,b:26};
+  const lx=q=>Math.log10(Math.max(1,q)), xmax=lx(maxQtd)||1;
+  const X=q=>pad.l+lx(q)/xmax*(W-pad.l-pad.r);
+  const Y=m=>pad.t+(100-Math.max(0,Math.min(100,m)))/100*(H-pad.t-pad.b);
+  const col={estrela:'#34C77B',joia:'#E8CD8F',vaza:'#E16358',cauda:'#6E8A7B'};
+  const maxFat=Math.max(...pts.map(p=>p.fat),1), R=f=>2+Math.sqrt(f/maxFat)*10;
+  const yC=Y(mSplit), xM=X(medQtd);
+  const dots=pts.slice().sort((a,b)=>b.fat-a.fat).map(p=>`<circle cx="${X(p.q).toFixed(1)}" cy="${Y(p.m).toFixed(1)}" r="${R(p.fat).toFixed(1)}" fill="${col[p.k]}" fill-opacity=".5" stroke="${col[p.k]}" stroke-opacity=".85" stroke-width=".6"><title>${esc(p.nome)} — ${fmtPct(p.m,0)} margem · ${fmtBRL(p.fat)} · ${fmtN(p.q)} un</title></circle>`).join('');
+  return `<svg class="scatter" viewBox="0 0 ${W} ${H}">
+    <line x1="${pad.l}" y1="${yC.toFixed(1)}" x2="${W-pad.r}" y2="${yC.toFixed(1)}" stroke="#E8CD8F55" stroke-dasharray="4 3"/>
+    <line x1="${xM.toFixed(1)}" y1="${pad.t}" x2="${xM.toFixed(1)}" y2="${H-pad.b}" stroke="#6E8A7B44" stroke-dasharray="4 3"/>
+    ${dots}
+    <text x="${pad.l+3}" y="${pad.t+1}" fill="#6E8A7B" font-size="10">↑ margem · ← giro · tamanho = R$</text>
+    <text x="${pad.l+3}" y="${(yC-4).toFixed(1)}" fill="#E8CD8F" font-size="9">margem do canal ${fmtPct(mSplit,0)}</text>
+    <text x="${W-pad.r-3}" y="${H-pad.b+18}" fill="#6E8A7B" font-size="10" text-anchor="end">giro (unidades, escala log) →</text>
+  </svg>`;
+}
+/* barra de amplitude de preço: min → max com um ponto por loja */
+function rangeBarSVG(prcs){
+  const ps=prcs.map(p=>p.prc), mn=Math.min(...ps), mx=Math.max(...ps), W=190,H=20;
+  const X=v=>mx>mn?8+(v-mn)/(mx-mn)*(W-16):W/2;
+  return `<svg class="rbar" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+    <line x1="${X(mn).toFixed(0)}" y1="10" x2="${X(mx).toFixed(0)}" y2="10" stroke="#6E8A7B55" stroke-width="2"/>
+    ${prcs.map(p=>`<circle cx="${X(p.prc).toFixed(0)}" cy="10" r="3.5" fill="${p.prc===mn?'#34C77B':p.prc===mx?'#E16358':'#9DB7A8'}"/>`).join('')}
+  </svg>`;
+}
 let gapSel = null;
 function renderSortimento(lojas, canal){
   const v=$('#view-sortimento');
@@ -1406,6 +1447,17 @@ function renderSortimento(lojas, canal){
   const Lsel=comPdf.find(l=>l.codigo===gapSel);
   const nomeOf=cod=>esc(nomeLoja(comPdf.find(l=>l.codigo===cod)||{codigo:cod}));
   const gmvOf=cod=>{ const l=comPdf.find(x=>x.codigo===cod); return l?l.gmvMes:null; };
+  const boletosOf=cod=>{ const l=comPdf.find(x=>x.codigo===cod); return l?l.boletos:null; };
+
+  /* 0 · Cobertura do sortimento (heatmap SKU × loja) */
+  const topSku=[...map.values()].sort((a,b)=>b.totFat-a.totFat).slice(0,26);
+  const hmStatus=(e,cod)=>{ const d=e.st[cod]; if(!d) return {cls:'au',t:'—'}; if(d.fat<100) return {cls:'mo',t:fmtBRL(d.fat,0)}; if(d.curva==='A') return {cls:'he',t:fmtBRL(d.fat,0)}; return {cls:'ve',t:fmtBRL(d.fat,0)}; };
+  const b0=`<div class="an-sec"><div class="sec-t">Cobertura do sortimento <span class="vtag medio">heatmap · ${topSku.length} maiores SKUs × loja</span></div>
+    <p class="an-lead">Os maiores produtos da rede e como cada loja vai em cada um. <b style="color:var(--verde)">Verde</b> = herói (curva A) · <b style="color:var(--ambar)">âmbar</b> = vende fraco · <b style="color:var(--verm)">vermelho</b> = parado / não vende. Linha verde com furo vermelho = lacuna de distribuição.</p>
+    <div class="tbl-wrap"><table class="hm"><thead><tr><th class="sku">Produto</th>${byGmv.map(l=>`<th title="${esc(nomeLoja(l))}">${esc(nomeLoja(l).replace('Loja ','').slice(0,7))}</th>`).join('')}</tr></thead><tbody>
+    ${topSku.map(e=>`<tr><td class="sku" title="${esc(e.nome)}">${esc(e.nome)}<div class="pmarca">${esc(e.marca||'')}</div></td>${byGmv.map(l=>{ const s=hmStatus(e,l.codigo); return `<td><span class="cell ${s.cls}">${s.t}</span></td>`; }).join('')}</tr>`).join('')}
+    </tbody></table></div>
+  </div>`;
 
   /* 1 · Lacunas de distribuição */
   const gaps=[];
@@ -1415,11 +1467,14 @@ function renderSortimento(lojas, canal){
     if(hereFat>=100) continue;
     const heroes=Object.entries(e.st).filter(([cod,d])=>cod!==gapSel && d.curva==='A' && d.fat>=500);
     if(!heroes.length) continue;
-    const ests=heroes.map(([cod,d])=>{ const g=gmvOf(cod); return (g&&Lsel.gmvMes)?d.fat*(Lsel.gmvMes/g):d.fat; }).sort((a,b)=>a-b);
+    const ests=heroes.map(([cod,d])=>{ const hb=boletosOf(cod); return (hb&&Lsel.boletos&&d.prc)? (d.qtd/hb)*Lsel.boletos*d.prc : (gmvOf(cod)&&Lsel.gmvMes? d.fat*(Lsel.gmvMes/gmvOf(cod)) : d.fat); }).sort((a,b)=>a-b);
     gaps.push({e, hereFat, heroes, est:ests[Math.floor(ests.length/2)], absent:!here});
   }
   gaps.sort((a,b)=>b.est-a.est);
   const potGap=gaps.reduce((s,g)=>s+g.est,0);
+  const rollMarca={}; gaps.forEach(g=>{ const k=g.e.marca||'—'; rollMarca[k]=(rollMarca[k]||0)+g.est; });
+  const topMarca=Object.entries(rollMarca).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxMarca=topMarca.length?topMarca[0][1]:1;
   const b1=`<div class="an-sec"><div class="sec-t">1 · Lacunas de distribuição <span class="vtag medio">heróis que faltam aqui</span></div>
     <p class="an-lead">SKUs que são <b>curva A em outra loja da rede</b> (vendem bem — prova interna) mas estão <b>ausentes ou parados</b> nesta loja. A ação mais direta do sortimento: levar/empurrar o que já funciona em casa.</p>
     <div class="strat-top"><select class="sel" id="fGap">${byGmv.map(l=>`<option value="${l.codigo}" ${gapSel===l.codigo?'selected':''}>${esc(nomeLoja(l))}</option>`).join('')}</select>
@@ -1431,7 +1486,8 @@ function renderSortimento(lojas, canal){
       <td class="num">${g.absent?'<span class="c-bad">não vende</span>':fmtBRL(g.hereFat)}</td>
       <td class="num"><b style="color:var(--ouro2)">${fmtBRL(g.est)}</b></td></tr>`).join('')}
     </tbody></table>
-    <p class="note">"Herói" = curva A (top 80% do faturamento) na outra loja, ≥ R$ 500 no período. Potencial estimado = venda na loja-herói ajustada pelo tamanho desta loja (GMV) — ordem de grandeza, não promessa. <b>Itens PRM (boleto promocional) ficam fora</b> — são campanha, não sortimento fixo.</p>
+    ${topMarca.length>1?`<div class="mini-t" style="margin:15px 0 8px">Onde as lacunas se concentram — por marca</div><div class="hbars">${topMarca.map(([m,val])=>`<div class="hbar"><div class="hl">${esc(m)}</div><div class="ht"><div class="hf" style="width:${(val/maxMarca*100).toFixed(1)}%;background:linear-gradient(90deg,#D9B25F,#E8CD8F)"></div></div><div class="hv">${fmtBRL(val)}</div></div>`).join('')}</div>`:''}
+    <p class="note">"Herói" = curva A (top 80% do faturamento) na outra loja, ≥ R$ 500 no período. Potencial estimado = <b>penetração da loja-herói</b> (unidades por cupom) aplicada aos cupons desta loja × preço — normalizado por tráfego, ordem de grandeza. <b>PRM (boleto promocional) fica fora</b> — é campanha, não sortimento.</p>
   </div>`;
 
   /* 2 · Margem × giro */
@@ -1445,6 +1501,9 @@ function renderSortimento(lojas, canal){
     const giroAlto=e.totQtd>=medQtd, margAlta=m>=mSplit;
     quad[giroAlto&&margAlta?'estrela':giroAlto?'vaza':margAlta?'joia':'cauda'].push({e,m});
   }
+  const scatterPts=[];
+  for (const k of ['estrela','vaza','joia','cauda']) for (const x of quad[k]) scatterPts.push({q:x.e.totQtd, m:x.m, fat:x.e.totFat, k, nome:x.e.nome});
+  const maxQtdAll=Math.max(...arr.map(e=>e.totQtd),1);
   const qdef=[
     {k:'vaza', t:'Margem vaza', sub:'giro alto · margem baixa · renegociar custo / cortar desconto', tag:'ruim', sort:(a,b)=>b.e.totFat-a.e.totFat, metric:x=>`${fmtPct(x.m,0)} · ${fmtBRL(x.e.totFat)}`},
     {k:'joia', t:'Jóias escondidas', sub:'margem alta · giro baixo · expor e empurrar mais', tag:'bom', sort:(a,b)=>b.e.totFat-a.e.totFat, metric:x=>`${fmtPct(x.m,0)} · ${fmtBRL(x.e.totFat)}`},
@@ -1452,7 +1511,8 @@ function renderSortimento(lojas, canal){
     {k:'cauda', t:'Cauda', sub:'giro baixo · margem baixa · candidatos a corte', tag:'medio', sort:(a,b)=>b.e.totFat-a.e.totFat, metric:x=>`${fmtBRL(x.e.totFat)}`}
   ];
   const b2=`<div class="an-sec"><div class="sec-t">2 · Margem × giro <span class="vtag medio">matriz do sortimento</span></div>
-    <p class="an-lead">Cada SKU da rede por <b>giro</b> (unidades) × <b>margem</b> (corte na margem do canal, ${fmtPct(mSplit,0)}). As duas caixas que importam: onde a <b>margem vaza</b> (vende muito, ganha pouco) e as <b>jóias</b> (ganham muito, vendem pouco — empurrar).</p>
+    <p class="an-lead">Cada SKU da rede por <b>giro</b> (unidades) × <b>margem</b> (corte na margem do canal, ${fmtPct(mSplit,0)}). As duas caixas que importam: onde a <b>margem vaza</b> (vende muito, ganha pouco) e as <b>jóias</b> (ganham muito, vendem pouco — empurrar). Passe o mouse nos pontos para ver o SKU.</p>
+    ${scatterSVG(scatterPts, mSplit, medQtd, maxQtdAll)}
     <div class="quad">${qdef.map(q=>{ const list=quad[q.k].sort(q.sort); const sf=list.reduce((s,x)=>s+x.e.totFat,0);
       return `<div class="quad-card${q.k==='vaza'||q.k==='joia'?' hot':''}"><div class="qt">${q.t}<span class="vtag ${q.tag}">${list.length} SKUs</span></div>
         <div class="qmeta">${q.sub} · ${fmtBRL(sf)}</div>
@@ -1477,13 +1537,13 @@ function renderSortimento(lojas, canal){
     <table class="sku-tbl"><thead><tr><th>Produto</th><th>Preço médio por loja</th><th class="num">Variação</th></tr></thead><tbody>
     ${price.slice(0,12).map(p=>`<tr>
       <td><div class="pnome">${esc(p.e.nome)}</div><div class="pmarca">${esc(p.e.marca||'')}</div></td>
-      <td>${p.prcs.sort((a,b)=>a.prc-b.prc).map(x=>`<span class="skuchip ${x.c===p.min.c?'lo':x.c===p.max.c?'hi':''}"><b>${nomeOf(x.c)}</b> ${fmtBRL(x.prc,2)}</span>`).join('')}</td>
+      <td>${rangeBarSVG(p.prcs)}${p.prcs.sort((a,b)=>a.prc-b.prc).map(x=>`<span class="skuchip ${x.c===p.min.c?'lo':x.c===p.max.c?'hi':''}"><b>${nomeOf(x.c)}</b> ${fmtBRL(x.prc,2)}</span>`).join('')}</td>
       <td class="num"><b>${fmtPct(p.spread,0)}</b></td></tr>`).join('')}
     </tbody></table>
     <p class="note">Preço médio realizado (pós-desconto), só SKUs com ≥ 5 unidades em cada loja comparada; PRM (boleto promocional) fora. ${comPdf.some(l=>l.mergedCods&&l.mergedCods.length>1)?'Coruripe: ABC somado (5905+24670) — o preço médio dela pode misturar as duas fontes.':''}</p>
   </div>`;
 
-  v.innerHTML = b1 + b2 + b3;
+  v.innerHTML = b0 + b1 + b2 + b3;
   $('#fGap').onchange = e => { gapSel = e.target.value; renderSortimento(lojas, canal); };
 }
 
