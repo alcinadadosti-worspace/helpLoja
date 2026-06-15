@@ -1101,7 +1101,7 @@ function renderLojas(lojas){
     </article>`;
   }).join('') + `</div>`;
   $$('[data-expand]').forEach(b => b.onclick = () => { const d = $('#det-'+b.dataset.expand); d.classList.toggle('on'); b.textContent = d.classList.contains('on') ? 'recolher ▴' : 'ver mix, curva ABC e top SKUs ▾'; });
-  $$('[data-rename]').forEach(inp => inp.onchange = () => { state.nomes[inp.dataset.rename] = inp.value.trim(); renderAll(); });
+  $$('[data-rename]').forEach(inp => inp.onchange = () => { state.nomes[inp.dataset.rename] = inp.value.trim(); setTimeout(renderAll, 0); }); // adia p/ fora do evento de blur (senão innerHTML remove o input em foco → erro de DOM)
 }
 
 /* ---------- Render: Benchmark e achados ---------- */
