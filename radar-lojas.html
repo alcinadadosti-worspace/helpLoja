@@ -1385,6 +1385,7 @@ function crossSKU(lojas){
     const s=(state.efetivas&&state.efetivas.get(l.codigo))||state.stores.get(l.codigo);
     if(!s||!s.abc||!s.abc.its) continue;
     for (const it of s.abc.its){
+      if(/\bPRM\b/i.test(it.nome)) continue; // PRM = boleto promocional (campanha, não sortimento fixo) — fora da análise de sortimento
       let e=map.get(it.sku);
       if(!e){ e={sku:it.sku, nome:it.nome, marca:it.marca, cat:it.cat, st:{}, totFat:0, totQtd:0, totLucro:0, bf:0}; map.set(it.sku,e); }
       e.st[l.codigo]={fat:it.fat, qtd:it.qtd, lucro:it.lucro, prc:it.prc, curva:it.curva};
@@ -1430,7 +1431,7 @@ function renderSortimento(lojas, canal){
       <td class="num">${g.absent?'<span class="c-bad">não vende</span>':fmtBRL(g.hereFat)}</td>
       <td class="num"><b style="color:var(--ouro2)">${fmtBRL(g.est)}</b></td></tr>`).join('')}
     </tbody></table>
-    <p class="note">"Herói" = curva A (top 80% do faturamento) na outra loja, ≥ R$ 500 no período. Potencial estimado = venda na loja-herói ajustada pelo tamanho desta loja (GMV) — ordem de grandeza, não promessa.</p>
+    <p class="note">"Herói" = curva A (top 80% do faturamento) na outra loja, ≥ R$ 500 no período. Potencial estimado = venda na loja-herói ajustada pelo tamanho desta loja (GMV) — ordem de grandeza, não promessa. <b>Itens PRM (boleto promocional) ficam fora</b> — são campanha, não sortimento fixo.</p>
   </div>`;
 
   /* 2 · Margem × giro */
@@ -1456,6 +1457,7 @@ function renderSortimento(lojas, canal){
       return `<div class="quad-card${q.k==='vaza'||q.k==='joia'?' hot':''}"><div class="qt">${q.t}<span class="vtag ${q.tag}">${list.length} SKUs</span></div>
         <div class="qmeta">${q.sub} · ${fmtBRL(sf)}</div>
         ${list.slice(0,4).map(x=>`<div class="qsku"><b>${esc(x.e.nome)}</b><span>${q.metric(x)}</span></div>`).join('')||'<div class="qsku" style="color:var(--tx3)">—</div>'}</div>`; }).join('')}</div>
+    <p class="note">Exclui itens de margem ≥ 98,5% (custo-zero/brinde) e PRM (boleto promocional). Giro = unidades somadas na rede.</p>
   </div>`;
 
   /* 3 · Mesmo SKU, preço diferente */
@@ -1478,7 +1480,7 @@ function renderSortimento(lojas, canal){
       <td>${p.prcs.sort((a,b)=>a.prc-b.prc).map(x=>`<span class="skuchip ${x.c===p.min.c?'lo':x.c===p.max.c?'hi':''}"><b>${nomeOf(x.c)}</b> ${fmtBRL(x.prc,2)}</span>`).join('')}</td>
       <td class="num"><b>${fmtPct(p.spread,0)}</b></td></tr>`).join('')}
     </tbody></table>
-    <p class="note">Preço médio realizado (pós-desconto), só SKUs com ≥ 5 unidades em cada loja comparada. ${comPdf.some(l=>l.mergedCods&&l.mergedCods.length>1)?'Coruripe: ABC somado (5905+24670) — o preço médio dela pode misturar as duas fontes.':''}</p>
+    <p class="note">Preço médio realizado (pós-desconto), só SKUs com ≥ 5 unidades em cada loja comparada; PRM (boleto promocional) fora. ${comPdf.some(l=>l.mergedCods&&l.mergedCods.length>1)?'Coruripe: ABC somado (5905+24670) — o preço médio dela pode misturar as duas fontes.':''}</p>
   </div>`;
 
   v.innerHTML = b1 + b2 + b3;
