@@ -733,6 +733,8 @@ function todasLojas(){
 
 /* ---------- Motor de estratégias ---------- */
 function nomeLoja(l){ return l.nome || apelidoRazao(l) || ('Loja ' + l.codigo); }
+/* nome curto p/ cabeçalho de heatmap, desambiguando "Palmeira" de "Palmeira Sustentável" */
+function lojaCurta(nome){ const s=String(nome).replace(/^Loja\s+/,''); const w=s.split(/\s+/).filter(Boolean); return w.length<=1 ? s.slice(0,9) : w[0].slice(0,4)+'.'+w[w.length-1].slice(0,5); }
 function apelidoRazao(l){ return null; }
 function gerarEstrategias(lojas, canal){
   const out = [];
@@ -1418,7 +1420,28 @@ function renderAnalise(lojas, canal, findings){
     <p class="note">Pearson entre as ${lojas.length} lojas. <b>n=${lojas.length} é baixo</b> — pista, não prova; a loja de formato pequeno (outlier) pesa. Confirmar com dado mensal.</p>
   </div>`;
 
-  v.innerHTML = b1 + b2 + b3 + b4 + b5 + b6;
+  /* 7 · Datas comemorativas (kits de data) */
+  const KITN={NAT:'Natal',MAES:'Mães',AMOR:'Namorados',PAIS:'Pais',CRIANC:'Crianças'};
+  const kTS={}, kTot={}, kStoreTot={};
+  const lojasPdf=lojas.filter(l=>{ const s=(state.efetivas&&state.efetivas.get(l.codigo))||state.stores.get(l.codigo); return s&&s.abc; });
+  for(const l of lojasPdf){ const s=(state.efetivas&&state.efetivas.get(l.codigo))||state.stores.get(l.codigo); kStoreTot[l.codigo]=s.abc.fat||1; const ks=s.abc.kits||{}; for(const k in ks){ const th=k.split('/')[0]; const f=ks[k].fat; (kTS[th]=kTS[th]||{}); kTS[th][l.codigo]=(kTS[th][l.codigo]||0)+f; kTot[th]=(kTot[th]||0)+f; } }
+  const themes=Object.keys(kTot).sort((a,b)=>kTot[b]-kTot[a]);
+  const totKit=Object.values(kTot).reduce((s,x)=>s+x,0);
+  const totFatAll=lojasPdf.reduce((s,l)=>s+kStoreTot[l.codigo],0)||1;
+  const byGmvP=[...lojasPdf].sort((a,b)=>(b.gmvMes||0)-(a.gmvMes||0));
+  let b7='';
+  if(themes.length){
+    const idxC=idx=>idx>=1.2?'he':idx>=0.8?'ve':'mo';
+    b7=`<div class="an-sec"><div class="sec-t">7 · Datas comemorativas <span class="vtag medio">captura de campanha · kits de data</span></div>
+      <p class="an-lead">Kits de data somam <b>${fmtBRL(totKit)}</b> (${fmtPct(totKit/totFatAll*100,1)} do faturamento) no período. Quem <b>capturou</b> cada campanha — célula = % do faturamento da loja naquela data; <span style="color:var(--verde)">verde</span> super-captura, <span style="color:var(--verm)">vermelho</span> deixou passar vs o canal.</p>
+      <div class="tbl-wrap"><table class="hm"><thead><tr><th class="sku">Data</th>${byGmvP.map(l=>`<th title="${esc(nomeLoja(l))}">${esc(lojaCurta(nomeLoja(l)))}</th>`).join('')}</tr></thead><tbody>
+      ${themes.map(th=>{ const chP=kTot[th]/totFatAll; return `<tr><td class="sku">${esc(KITN[th]||th)}<div class="pmarca">${fmtPct(chP*100,1)} do canal · ${fmtBRL(kTot[th])}</div></td>${byGmvP.map(l=>{ const f=(kTS[th]&&kTS[th][l.codigo])||0; const p=f/kStoreTot[l.codigo]; const idx=chP?p/chP:0; return `<td><span class="cell ${f?idxC(idx):'au'}" title="${fmtBRL(f)} · índice ${fmtN(idx,2)}×">${f?fmtPct(p*100,1):'—'}</span></td>`; }).join('')}</tr>`; }).join('')}
+      </tbody></table></div>
+      <p class="note">% = kits daquela data ÷ faturamento da loja; cor = índice vs o peso da data no canal (verde ≥ 1,20× · vermelho ≤ 0,80×). A janela (26/12–12/06) cobre Natal/Mães/Namorados; Pais e Crianças ficam fora.</p>
+    </div>`;
+  }
+
+  v.innerHTML = b1 + b2 + b3 + b4 + b5 + b6 + b7;
 }
 
 /* ---------- Render: Sortimento (SKU cruzado entre lojas) ---------- */
@@ -1484,7 +1507,7 @@ function renderSortimento(lojas, canal){
   const hmStatus=(e,cod)=>{ const d=e.st[cod]; if(!d) return {cls:'au',t:'—'}; if(d.fat<100) return {cls:'mo',t:fmtBRL(d.fat,0)}; if(d.curva==='A') return {cls:'he',t:fmtBRL(d.fat,0)}; return {cls:'ve',t:fmtBRL(d.fat,0)}; };
   const b0=`<div class="an-sec"><div class="sec-t">Cobertura do sortimento <span class="vtag medio">heatmap · ${topSku.length} maiores SKUs × loja</span></div>
     <p class="an-lead">Os maiores produtos da rede e como cada loja vai em cada um. <b style="color:var(--verde)">Verde</b> = herói (curva A) · <b style="color:var(--ambar)">âmbar</b> = vende fraco · <b style="color:var(--verm)">vermelho</b> = parado / não vende. Linha verde com furo vermelho = lacuna de distribuição.</p>
-    <div class="tbl-wrap"><table class="hm"><thead><tr><th class="sku">Produto</th>${byGmv.map(l=>`<th title="${esc(nomeLoja(l))}">${esc(nomeLoja(l).replace('Loja ','').slice(0,7))}</th>`).join('')}</tr></thead><tbody>
+    <div class="tbl-wrap"><table class="hm"><thead><tr><th class="sku">Produto</th>${byGmv.map(l=>`<th title="${esc(nomeLoja(l))}">${esc(lojaCurta(nomeLoja(l)))}</th>`).join('')}</tr></thead><tbody>
     ${topSku.map(e=>`<tr><td class="sku" title="${esc(e.nome)}">${esc(e.nome)}<div class="pmarca">${esc(e.marca||'')}</div></td>${byGmv.map(l=>{ const s=hmStatus(e,l.codigo); return `<td><span class="cell ${s.cls}">${s.t}</span></td>`; }).join('')}</tr>`).join('')}
     </tbody></table></div>
   </div>`;
@@ -1672,7 +1695,7 @@ function renderLucro(lojas, canal){
   const idxColor=idx=>idx>=1.20?'he':idx>=0.80?'ve':'mo';
   const b4=`<div class="an-sec"><div class="sec-t">4 · Mix por categoria <span class="vtag medio">índice vs canal · loja × categoria</span></div>
     <p class="an-lead">Quanto cada categoria pesa no faturamento de cada loja, e se ela <b>super-indexa</b> (<span style="color:var(--verde)">verde</span>) ou <b>subindexa</b> (<span style="color:var(--verm)">vermelho</span>) vs a média do canal. Revela o viés estrutural de cada loja.</p>
-    <div class="tbl-wrap"><table class="hm"><thead><tr><th class="sku">Categoria <small>(% canal)</small></th>${byGmv.map(l=>`<th title="${esc(nomeLoja(l))}">${esc(nomeLoja(l).replace('Loja ','').slice(0,7))}</th>`).join('')}</tr></thead><tbody>
+    <div class="tbl-wrap"><table class="hm"><thead><tr><th class="sku">Categoria <small>(% canal)</small></th>${byGmv.map(l=>`<th title="${esc(nomeLoja(l))}">${esc(lojaCurta(nomeLoja(l)))}</th>`).join('')}</tr></thead><tbody>
     ${catsTop.map(c=>{ const chPct=c.fat/totFat; return `<tr><td class="sku">${esc(c.k)}<div class="pmarca">${fmtPct(chPct*100,0)} do canal</div></td>${byGmv.map(l=>{ const cl=A.catLoja[c.k]&&A.catLoja[c.k][l.codigo]; const lt=A.lojaTot[l.codigo].fat||1; const p=cl?cl.fat/lt:0; const idx=chPct?p/chPct:0; return `<td><span class="cell ${cl?idxColor(idx):'au'}" title="índice ${fmtN(idx,2)}× vs canal">${cl?fmtPct(p*100,0):'—'}</span></td>`; }).join('')}</tr>`; }).join('')}
     </tbody></table></div>
     <p class="note">Célula = % daquela categoria no faturamento da loja; cor = índice vs o peso da categoria no canal (verde ≥ 1,20× · vermelho ≤ 0,80×). PRM fora.</p>
@@ -1696,7 +1719,17 @@ function renderLucro(lojas, canal){
     <p class="note">Gini/Pareto sobre o lucro por SKU (lucro &gt; 0). "Risco" = se um campeão de lucro rompe, a perda é proporcional à fatia dele. PRM fora; Coruripe com asterisco.</p>
   </div>`;
 
-  v.innerHTML = b1 + b2 + b3 + b4 + b5;
+  /* 6 · Gap de categoria (rebalanceamento vs canal) */
+  const chPctCat={}; for(const k in A.cat) chPctCat[k]=A.cat[k].fat/totFat;
+  const gapByStore=byGmv.map(l=>{ const lt=A.lojaTot[l.codigo].fat||1; let gap=0; const unders=[]; for(const k in A.cat){ const cl=A.catLoja[k]&&A.catLoja[k][l.codigo]; const p=cl?cl.fat/lt:0; const ch=chPctCat[k]; if(ch>p+0.005){ const g=(ch-p)*lt; gap+=g; unders.push({k,g}); } } unders.sort((a,b)=>b.g-a.g); return {nome:nomeLoja(l), gap, unders:unders.slice(0,3), merged:l.mergedCods&&l.mergedCods.length>1}; }).sort((a,b)=>b.gap-a.gap);
+  const maxGap=Math.max(...gapByStore.map(x=>x.gap),1);
+  const b6=`<div class="an-sec"><div class="sec-t">6 · Gap de categoria <span class="vtag medio">rebalanceamento de mix vs o canal</span></div>
+    <p class="an-lead">Quanto de faturamento cada loja tem nas categorias que ela <b>subdesenvolve</b> vs a média do canal — o tamanho do desequilíbrio de mix. <b>Não é receita nova</b>: é o quanto daria pra <b>realocar</b> das categorias fortes para as fracas se a loja seguisse o equilíbrio do canal (referência, não meta — lojas têm diferenças locais legítimas).</p>
+    <div class="hbars">${gapByStore.map(x=>`<div class="hbar"><div class="hl">${esc(x.nome)}${x.merged?'*':''} <small>falta: ${x.unders.map(u=>esc(u.k)).join(', ')||'equilibrada'}</small></div><div class="ht"><div class="hf" style="width:${(x.gap/maxGap*100).toFixed(1)}%;background:linear-gradient(90deg,#E8B84B,#E8CD8F)"></div></div><div class="hv">${fmtBRL(x.gap)}</div></div>`).join('')}</div>
+    <p class="note">Soma das categorias onde a loja fica abaixo do peso do canal × faturamento da loja; "falta" = as 3 maiores lacunas de cada loja. PRM fora.</p>
+  </div>`;
+
+  v.innerHTML = b1 + b2 + b3 + b4 + b5 + b6;
   const sb=$('#fBridge'); if(sb) sb.onchange=e=>{ bridgeSel=e.target.value; renderLucro(lojas, canal); };
 }
 
