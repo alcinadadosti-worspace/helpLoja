@@ -6,7 +6,7 @@
 
 ## 1. O que é
 
-**Radar Lojas** é uma aplicação standalone (arquivo HTML único, processamento 100% client-side no navegador) de **diagnóstico e estratégias de recuperação do canal loja** do Grupo Alcina Maria (rede O Boticário, Penedo/AL). O usuário arrasta relatórios brutos exportados do ERP e a app produz: benchmarking entre lojas, curva ABC e mix por loja, motor de estratégias priorizadas por impacto em R$ e simulador de cenários.
+**Radar Lojas** é uma aplicação standalone (arquivo HTML único, processamento 100% client-side no navegador) de **diagnóstico do canal loja** do Grupo Alcina Maria (rede O Boticário, Penedo/AL). O usuário arrasta relatórios brutos exportados do ERP e a app produz uma **análise, não uma prescrição**: leitura do canal, benchmark entre as lojas, curva ABC e mix por loja, achados por loja com materialidade em R$ e ressalvas, **uma aba de análise estruturada (Gini/Pareto/Lorenz, coef. de variação, fronteira peer) e contexto de movimentação de equipe (§14)**. **Remodelada de motor de estratégias → ferramenta de diagnóstico em 15/06/2026 (ver §13) — saíram checklist de ações, "potencial total", waterfall e simulador.**
 
 - **Stack:** HTML/CSS/JS vanilla + pdf.js 3.11.174 (cdnjs) + SheetJS 0.18.5 (cdnjs). Sem build, sem servidor, sem localStorage (estado só em memória).
 - **Padrão da casa:** mesmo modelo das ferramentas Foco Atividade e painel-vendas (arquivo único que processa arquivos reais no browser).
@@ -155,6 +155,8 @@ Bugs encontrados rodando os arquivos reais da rede e corrigidos no `radar-lojas.
 
 ## 12. Aba Estratégias — visual (15/06/2026)
 
+> ⚠ **Superada pela §13.** A aba "Estratégias" virou "Benchmark e achados"; o **waterfall (12.2) foi removido** e a parte prescritiva da régua (12.1) foi reformulada de "agora → meta" para "agora → rede". A régua `svizHTML` continua viva, só com `alvoLabel` diferente.
+
 O usuário pediu algo mais visual: a aba era só lista de cards-relatório (badge + diagnóstico + checklist). Dois acréscimos:
 
 ### 12.1 Régua "agora → meta" por estratégia (o que o usuário pediu)
@@ -174,3 +176,39 @@ Cascata acima dos cards: *GMV hoje → +cada alavanca somável → GMV potencial
 - **Respeita o filtro `#fStrat`:** *Todas as lojas* → base = `canal.gmvMes`, alavancas **agrupadas por título** (mantém ~4 barras limpas em vez de 29 estratégias); *uma loja* → base = `gmvMes` da loja, cada alavanca individual.
 - **`renderEstrategias` agora recebe `canal`** (assinatura `(lojas, canal, strats)`; atualizados o `onchange` e a chamada em `renderAll`). O box "Potencial identificado" passou a **refletir o escopo filtrado** (antes era sempre o total do canal).
 - **Validação:** `node --check` OK; teste isolado da matemática bate ao centavo (73.103 = 57.900 + 8.686 + 3.587 + 2.351 + 579 na 24303); render real no Chromium com o seed das 7 lojas sem erros de console — canal +25,9% (R$ 1.777.885/ano), filtro Coruripe R$ 149.130 → R$ 161.097 (+8,0%).
+
+## 13. Remodelagem: de motor de estratégias para diagnóstico (15/06/2026)
+
+Decisão do usuário: *"ao invés de me dar estratégias, remodule a app e faça uma análise do canal"*. Aprovado: **(1) virar diagnóstico** — Estratégias→Achados (mesma detecção, reapresentada como leitura de dados, sem checklist/meta/ações), + Benchmark entre lojas, "Visão do canal"→narrativa; **(2) remover o Simulador**. Materialidade em R$ mantida (é análise, não ordem). Esta seção é o **estado atual autoritativo** (supera §12 onde divergir).
+
+**Antes de codar, extraí os números reais das 6 lojas via Playwright** (`page.evaluate` chamando `todasLojas()/canalAgregado()/gerarEstrategias()` no app já com o seed) — a narrativa e os achados são baseados nesses dados, não em achismo. Leituras-chave: canal **R$ 571k/mês (~R$ 6,85M/ano)**; Coruripe+Palmeira = **52%** do GMV; forças uniformes (ticket 204–230, margem 62–68%*, trocas <1,5%, fid 91–97%); variância de execução (desconto 18,5–28,1%, recorrência 3,6–10,2%, fluxo 3,1–23,8 cup/dia). **A manchete "R$ 103k/mês em fluxo" do motor antigo era enganosa** — dominada por exigir que a micro-loja Sustentável fizesse ~4,6× o próprio fluxo; agora vem com ressalva ("teto aritmético, não meta").
+
+**Pipeline preservado intacto** (parsers, selo ✓, `derivar`/`canalAgregado`/merge, SEED). Mudou só apresentação + framing:
+
+- **3 abas** (era 4): `Diagnóstico` (era "Visão do canal"), `Lojas`, `Benchmark e achados` (era "Estratégias"). Simulador removido — tab, `view-simulador` e a função `renderSimulador` excluídos.
+- **Motor (`gerarEstrategias`, nome mantido; retorna "findings")**: detecção e materialidade (`impacto`) **intactas**; só os 9 `titulo` viraram observacionais ("Desconto acima da média da rede", "Fluxo abaixo da média da rede" etc.). O render usa `diag` como leitura e **ignora** `meta`/`acoes`/`fonte` (viram dead-data no objeto, não removidos do motor).
+- **`renderCanal` → narrativa do Diagnóstico** (100% computada de `lojas`/`canal`/`findings`): KPIs (sem o pill "Potencial"); bloco "Leitura do canal" (tamanho, concentração top-2, micro-loja, forças uniformes via min–max, variância de execução); e "**Gargalo nº 1 de cada loja**" = o achado de maior materialidade por loja.
+- **`renderEstrategias` → Benchmark + Achados**: `matrizHTML(lojas)` (heatmap loja×indicador, movido do canal) + cards reformulados — badge de relevância (alta/média/baixa), leitura (`diag`), materialidade `~R$/mês`, linha **"Melhor da rede: {loja} {valor} · canal {valor}"** (helpers `melhorRede` + `DIMKEY` + `canalVal`), régua `svizHTML` com `alvoLabel:'rede'`, e **ressalvas** automáticas: (a) Coruripe — indicadores de ABC (cauda/recorrência) marcados pelo merge 5905+24670; (b) micro-loja — materialidade de fluxo é teto aritmético.
+- **Removido do render**: `waterfallHTML`/`tituloCurto`, box "Potencial identificado", checklist `.acoes`, simulador. CSS desses elementos ficou no arquivo (dead, inócuo). `resumoSlack` reframado para "Principais achados" (sem "potencial total").
+- **`svizHTML`** ganhou `z.alvoLabel` (default `'meta'`; achados passam `'rede'`).
+- **Aba Lojas**: ressalva de merge (Coruripe) no topo do card.
+
+**Validação (critério permanente mantido):** `node --check` sem erro; render no Chromium com o seed das 7 lojas — 3 abas, 8 pills, narrativa (4 §), 6 gargalos, matriz 6 linhas, 29 achados, 24 linhas de benchmark, 3 ressalvas, **0 checklists**, 1 ressalva-merge na aba Lojas, **zero erros de console**. Selo ✓ dos PDFs e pipeline de dados inalterados.
+
+**Constraint de fundo:** não há dados do ano anterior (YoY) — o eixo de comparação é **peer** (loja vs melhor loja da própria rede), que substitui o tempo. Ver memória `radar-lojas-sem-yoy`.
+
+## 14. Aba Análise + contexto de equipe (15/06/2026)
+
+Pedido: *"use de estratégia muito bem elaborada pra descobrir onde estamos indo ruim e onde podemos melhorar"* → esclarecido como **análise visual bem estruturada** (no rigor de Pareto/Gini). Nova aba **Análise** (`view-analise`, entre Diagnóstico e Lojas) — **4 abas agora**. 5 frameworks, todos computados client-side dos dados já parseados:
+
+1. **Concentração do sortimento** — `gini()` do faturamento por SKU + `pareto80()` + `lorenzSVG()` (curva de Lorenz) por loja; veredito por `caudaPct`. Mede dependência de heróis × cauda morta. Ginis reais: 0,57–0,73.
+2. **Concentração da rede** — `gini()` do GMV entre as 6 lojas + Pareto (barras + acumulado). Top-2 = 52%.
+3. **Consistência de execução** — `cvar()` (coef. de variação) por indicador entre lojas, ordenado. Alto = disperso (oportunidade de alinhar); baixo = alinhado. Revela: ticket/margem/trocas consistentes; desconto/recorrência/fluxo dispersos.
+4. **Fronteira de oportunidade** (peer/DEA-like) — cada loja vs a melhor da rede: desconto (front. Palmeira 18,5%) R$ 40,6k, cesta (front. Coruripe 2,91) R$ 37,4k, fluxo (exclui micro) R$ 35,1k, recorrência (indireto) R$ 9,4k. **Somável direto R$ 113k/mês = R$ 1,36M/ano = +19,8%**. Callout do **espelho Coruripe↔Palmeira** (cada uma é a melhor no que a outra é a pior; `melhorRede` sobre lojas não-micro — micro empatava e quebrava a detecção).
+5. **Movimentação de equipe (contexto)** — const `MOVIMENTACOES`. Por loja: chips papel+data, nível de exposição (gerente ou ≥2 saídas cedo = alta; só tardia = baixa).
+
+**Privacidade (decisão):** o usuário passou **nomes** de demitidos/transferidos. Como o app é **deployado público** (Render), **nomes NÃO foram embutidos** — `MOVIMENTACOES` guarda só `loja`/`data`/`tipo`/`cargo` (anonimizado). Sinal analítico preservado sem expor PII de terceiros (LGPD). Nomes ficaram na conversa + memória `radar-lojas-movimentacao-equipe`.
+
+**Limitação honesta (dita na própria UI):** dados são **agregados do período** (1 nº/loja) — dá para *sinalizar* troca de equipe, não *isolar* o impacto. Para medir, precisa de vendas **por mês** (pré/pós cada data). **Hipótese forte:** Palmeira perdeu a **gerente em 02/02** e é a pior da rede em **cesta e identificação** — os indicadores que um gerente cobra; pode ser transitório (ramp-up), não estrutural.
+
+**Helpers novos:** `gini`, `cvar`, `pareto80`, `lorenzSVG`, `renderAnalise`, const `MOVIMENTACOES`. CSS: bloco "ANÁLISE". **Validação:** `node --check` OK; Chromium (seed 7 lojas) — 5 seções, 6 Gini+Lorenz, 18 barras, espelho, 9 chips de equipe, zero erros de console.
