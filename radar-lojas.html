@@ -260,6 +260,13 @@ table.rank{border-collapse:collapse;width:100%;min-width:980px;font-size:12.5px}
 .hm .au{background:#0C161255;color:#5b7468}
 .scatter{display:block;width:100%;height:auto;background:linear-gradient(180deg,#101d1855,transparent);border:1px solid var(--line);border-radius:10px;margin-bottom:12px;max-width:880px}
 .rbar{display:block;margin-bottom:2px}
+.lucro-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(248px,1fr));gap:18px;max-width:1000px}
+.lucro-cols .mini-t{margin-bottom:9px}
+.corr{border-collapse:separate;border-spacing:2px;font-size:11px}
+.corr th{font-weight:700;color:var(--tx3);font-size:9.5px;padding:3px 5px;text-align:center;white-space:nowrap}
+.corr th.rh{text-align:right}
+.corr td{text-align:center;padding:0}
+.corr .cc{display:block;padding:6px 9px;border-radius:4px;font-variant-numeric:tabular-nums;font-weight:700;min-width:42px}
 
 /* ====== DIAGNÓSTICO (narrativa + gargalos) ====== */
 .narr{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin:4px 0 16px;max-width:980px}
@@ -336,6 +343,7 @@ footer{padding:26px clamp(16px,4vw,40px);border-top:1px solid var(--line);color:
   <button class="tab on" data-v="canal">Diagnóstico</button>
   <button class="tab" data-v="analise">Análise</button>
   <button class="tab" data-v="sortimento">Sortimento</button>
+  <button class="tab" data-v="lucro">Lucro</button>
   <button class="tab" data-v="lojas">Lojas</button>
   <button class="tab" data-v="estrategias">Benchmark e achados</button>
 </nav>
@@ -344,6 +352,7 @@ footer{padding:26px clamp(16px,4vw,40px);border-top:1px solid var(--line);color:
   <section class="view on" id="view-canal"></section>
   <section class="view" id="view-analise"></section>
   <section class="view" id="view-sortimento"></section>
+  <section class="view" id="view-lucro"></section>
   <section class="view" id="view-lojas"></section>
   <section class="view" id="view-estrategias"></section>
 </main>
@@ -1261,6 +1270,13 @@ function pareto80(vals){
   for (; i<a.length; i++){ cum+=a[i]; if (cum>=0.8*tot){ i++; break; } }
   return i/a.length*100;
 }
+function pearson(xs, ys){
+  const n=xs.length; if(n<3) return null;
+  const mx=xs.reduce((a,b)=>a+b,0)/n, my=ys.reduce((a,b)=>a+b,0)/n;
+  let sxy=0,sxx=0,syy=0;
+  for(let i=0;i<n;i++){ const dx=xs[i]-mx, dy=ys[i]-my; sxy+=dx*dy; sxx+=dx*dx; syy+=dy*dy; }
+  return (sxx&&syy)? sxy/Math.sqrt(sxx*syy) : 0;
+}
 function lorenzSVG(vals){
   const a = vals.filter(v=>v>0).sort((x,y)=>x-y); const n=a.length, tot=a.reduce((s,x)=>s+x,0);
   const w=170,h=78; if (!n||!tot) return '';
@@ -1388,7 +1404,21 @@ function renderAnalise(lojas, canal, findings){
     <p class="ressalva" style="max-width:960px">⚠ Os dados que temos são <b>agregados do período inteiro</b> (1 número por loja) — dá para <b>sinalizar</b> onde houve troca de equipe, mas <b>não para isolar</b> o quanto cada saída pesou. Para medir de fato, precisaríamos das vendas <b>por mês</b> (pré/pós cada data). Hipótese forte: a <b>Palmeira</b> perdeu a <b>gerente em 02/02</b> e é a pior da rede em cesta e identificação — justo os indicadores que um gerente cobra no caixa.</p>
   </div>`;
 
-  v.innerHTML = b1 + b2 + b3 + b4 + b5;
+  /* 6 · Correlação entre alavancas */
+  const inds=[{k:'boletosDia',lb:'Fluxo'},{k:'ticket',lb:'Ticket'},{k:'itensBoleto',lb:'Cesta'},{k:'descEtiqPct',lb:'Desconto'},{k:'fidPct',lb:'Fidelid.'},{k:'recorrPct',lb:'Recorr.'},{k:'margem',lb:'Margem'}];
+  const corr=(ka,kb)=>{ const xs=[],ys=[]; for(const l of lojas){ if(l[ka]!=null&&l[kb]!=null&&!isNaN(l[ka])&&!isNaN(l[kb])){ xs.push(l[ka]); ys.push(l[kb]); } } return pearson(xs,ys); };
+  const corrCol=r=>{ if(r==null) return 'background:var(--surf3);color:var(--tx3)'; const a=Math.min(0.6,Math.abs(r)*0.58+0.07); return r>=0?`background:rgba(52,199,123,${a.toFixed(2)});color:#eafff5`:`background:rgba(225,99,88,${a.toFixed(2)});color:#fff0ee`; };
+  const descFlux=corr('descEtiqPct','boletosDia'), descCesta=corr('descEtiqPct','itensBoleto');
+  const b6=`<div class="an-sec"><div class="sec-t">6 · Correlação entre alavancas <span class="vtag medio">o que anda junto · n=${lojas.length}</span></div>
+    <p class="an-lead">Quando uma loja tem mais de um indicador, costuma ter mais de outro? <span style="color:var(--verde)">Verde</span> = andam juntos · <span style="color:var(--verm)">vermelho</span> = inversos. Serve para <b>levantar hipóteses</b>, não provar — com 6 lojas, uma sozinha já mexe muito.</p>
+    <div class="tbl-wrap"><table class="corr"><thead><tr><th></th>${inds.map(i=>`<th>${i.lb}</th>`).join('')}</tr></thead><tbody>
+    ${inds.map((ri,r)=>`<tr><th class="rh">${ri.lb}</th>${inds.map((ci,c)=>{ if(r===c) return `<td><span class="cc" style="background:var(--surf3);color:var(--tx3)">—</span></td>`; const val=corr(ri.k,ci.k); return `<td><span class="cc" style="${corrCol(val)}">${val==null?'—':fmtN(val,1)}</span></td>`; }).join('')}</tr>`).join('')}
+    </tbody></table></div>
+    <div class="mirror"><div class="mt">A pergunta-chave: o desconto compra movimento?</div>Correlação <b>desconto × fluxo = ${descFlux==null?'—':fmtN(descFlux,2)}</b> · desconto × cesta = <b>${descCesta==null?'—':fmtN(descCesta,2)}</b>. ${descFlux!=null&&descFlux<0.3?'Descontar mais <b>não</b> vem com mais fluxo na rede — o desconto não está "comprando" movimento.':'Há associação positiva — vale confirmar com dado por período.'}</div>
+    <p class="note">Pearson entre as ${lojas.length} lojas. <b>n=${lojas.length} é baixo</b> — pista, não prova; a loja de formato pequeno (outlier) pesa. Confirmar com dado mensal.</p>
+  </div>`;
+
+  v.innerHTML = b1 + b2 + b3 + b4 + b5 + b6;
 }
 
 /* ---------- Render: Sortimento (SKU cruzado entre lojas) ---------- */
@@ -1547,6 +1577,111 @@ function renderSortimento(lojas, canal){
   $('#fGap').onchange = e => { gapSel = e.target.value; renderSortimento(lojas, canal); };
 }
 
+/* ---------- Render: Lucro (rentabilidade e estrutura) ---------- */
+function aggProfit(lojas){
+  const cat={}, marca={}, catLoja={}, lojaTot={};
+  for(const l of lojas){
+    const s=(state.efetivas&&state.efetivas.get(l.codigo))||state.stores.get(l.codigo);
+    if(!s||!s.abc||!s.abc.its) continue;
+    lojaTot[l.codigo]={fat:0,lucro:0};
+    for(const it of s.abc.its){
+      if(/\bPRM\b/i.test(it.nome)) continue;
+      (cat[it.cat]=cat[it.cat]||{fat:0,lucro:0}); cat[it.cat].fat+=it.fat; cat[it.cat].lucro+=it.lucro;
+      (marca[it.marca]=marca[it.marca]||{fat:0,lucro:0}); marca[it.marca].fat+=it.fat; marca[it.marca].lucro+=it.lucro;
+      (catLoja[it.cat]=catLoja[it.cat]||{}); (catLoja[it.cat][l.codigo]=catLoja[it.cat][l.codigo]||{fat:0,lucro:0});
+      catLoja[it.cat][l.codigo].fat+=it.fat; catLoja[it.cat][l.codigo].lucro+=it.lucro;
+      lojaTot[l.codigo].fat+=it.fat; lojaTot[l.codigo].lucro+=it.lucro;
+    }
+  }
+  return {cat, marca, catLoja, lojaTot};
+}
+let bridgeSel=null;
+function renderLucro(lojas, canal){
+  const v=$('#view-lucro');
+  const comPdf=lojas.filter(l=>{ const s=(state.efetivas&&state.efetivas.get(l.codigo))||state.stores.get(l.codigo); return s&&s.abc&&s.abc.its; });
+  if(!comPdf.length){ v.innerHTML=`<div class="empty"><b>A lente de lucro precisa do PDF do ABC</b> (é dele que vem o lucro por item).</div>`; return; }
+  const A=aggProfit(comPdf);
+  const byGmv=[...comPdf].sort((a,b)=>(b.gmvMes||0)-(a.gmvMes||0));
+  const nomeOf=cod=>esc(nomeLoja(comPdf.find(l=>l.codigo===cod)||{codigo:cod}));
+  const aster=comPdf.some(l=>l.mergedCods&&l.mergedCods.length>1)?'*':'';
+  const hbar=(label,wpct,valHtml,color)=>`<div class="hbar"><div class="hl">${label}</div><div class="ht"><div class="hf" style="width:${Math.max(0,Math.min(100,wpct)).toFixed(1)}%;background:${color}"></div></div><div class="hv">${valHtml}</div></div>`;
+  const GOLD='linear-gradient(90deg,#D9B25F,#E8CD8F)';
+
+  /* 1 · Onde o lucro nasce */
+  const totLucro=Object.values(A.lojaTot).reduce((s,x)=>s+x.lucro,0);
+  const totFat=Object.values(A.lojaTot).reduce((s,x)=>s+x.fat,0)||1;
+  const lojaArr=byGmv.map(l=>({nome:nomeLoja(l),fat:A.lojaTot[l.codigo].fat,lucro:A.lojaTot[l.codigo].lucro,merged:l.mergedCods&&l.mergedCods.length>1})).filter(x=>x.lucro);
+  const catArr=Object.entries(A.cat).map(([k,x])=>({k,fat:x.fat,lucro:x.lucro,m:x.fat?x.lucro/x.fat*100:0})).sort((a,b)=>b.lucro-a.lucro);
+  const marcaArr=Object.entries(A.marca).map(([k,x])=>({k,fat:x.fat,lucro:x.lucro,m:x.fat?x.lucro/x.fat*100:0})).sort((a,b)=>b.lucro-a.lucro);
+  const maxL=Math.max(...lojaArr.map(x=>x.lucro),1), maxC=Math.max(...catArr.map(x=>x.lucro),1), maxM=Math.max(...marcaArr.map(x=>x.lucro),1);
+  const rankFat={}, rankLuc={};
+  [...catArr].sort((a,b)=>b.fat-a.fat).forEach((c,i)=>rankFat[c.k]=i+1);
+  [...catArr].sort((a,b)=>b.lucro-a.lucro).forEach((c,i)=>rankLuc[c.k]=i+1);
+  let diverg=null; for(const c of catArr){ const d=rankLuc[c.k]-rankFat[c.k]; if(!diverg||Math.abs(d)>Math.abs(diverg.d)) diverg={k:c.k,d,rf:rankFat[c.k],rl:rankLuc[c.k],m:c.m}; }
+  const b1=`<div class="an-sec"><div class="sec-t">1 · Onde o lucro nasce <span class="vtag bom">lucro bruto ${fmtBRL(totLucro)}${aster}</span></div>
+    <p class="an-lead">O canal não vive de faturamento, vive de <b>lucro bruto</b> (${fmtPct(totLucro/totFat*100,0)} do que vende). Onde ele de fato nasce — por loja, categoria e marca.</p>
+    <div class="lucro-cols">
+      <div><div class="mini-t">Por loja</div><div class="hbars">${lojaArr.map(x=>hbar(esc(x.nome)+(x.merged?'*':''), x.lucro/maxL*100, `${fmtBRL(x.lucro)} <small>· ${fmtPct(x.lucro/x.fat*100,0)}</small>`, GOLD)).join('')}</div></div>
+      <div><div class="mini-t">Por categoria</div><div class="hbars">${catArr.slice(0,8).map(x=>hbar(esc(x.k), x.lucro/maxC*100, `${fmtBRL(x.lucro)} <small>· ${fmtPct(x.m,0)}</small>`, GOLD)).join('')}</div></div>
+      <div><div class="mini-t">Por marca</div><div class="hbars">${marcaArr.slice(0,8).map(x=>hbar(esc(x.k), x.lucro/maxM*100, `${fmtBRL(x.lucro)} <small>· ${fmtPct(x.m,0)}</small>`, GOLD)).join('')}</div></div>
+    </div>
+    ${diverg&&Math.abs(diverg.d)>=2?`<div class="mirror"><div class="mt">Receita ≠ lucro</div>A categoria <b>${esc(diverg.k)}</b> é <b>#${diverg.rf} em receita</b> mas <b>#${diverg.rl} em lucro</b> (margem ${fmtPct(diverg.m,0)}) — ${diverg.d>0?'puxa volume mas entrega pouco lucro proporcionalmente':'lucra acima do que o faturamento sugere'}.</div>`:''}
+    <p class="note">Lucro bruto do ABC (faturamento − custo − impostos). ${aster?'<b>*</b> Coruripe: ABC somado (5905+24670), lucro com asterisco.':''} PRM (promocional) fora.</p>
+  </div>`;
+
+  /* 2 · Lucro por cupom */
+  const totBol2=comPdf.reduce((s,l)=>s+(l.boletos||0),0)||1;
+  const canalLpc=totLucro/totBol2;
+  const lpc=byGmv.map(l=>({nome:nomeLoja(l), v:l.boletos?A.lojaTot[l.codigo].lucro/l.boletos:0, merged:l.mergedCods&&l.mergedCods.length>1})).filter(x=>x.v).sort((a,b)=>b.v-a.v);
+  const maxLpc=Math.max(...lpc.map(x=>x.v),1);
+  const b2=`<div class="an-sec"><div class="sec-t">2 · Lucro por cupom <span class="vtag medio">qualidade da transação</span></div>
+    <p class="an-lead">Quanto de <b>lucro</b> cada cupom deixa — uma loja pode vender menos e lucrar mais por atendimento. Média do canal: <b>${fmtBRL(canalLpc,2)}</b>.</p>
+    <div class="hbars">${lpc.map(x=>hbar(esc(x.nome)+(x.merged?'*':''), x.v/maxLpc*100, fmtBRL(x.v,2), x.v>=canalLpc?'linear-gradient(90deg,#2BB673,#34C77B)':'linear-gradient(90deg,#E8B84B,#E8CD8F)')).join('')}</div>
+    <p class="note">Lucro bruto ÷ cupons do período. ${aster?'Coruripe com asterisco.':''}</p>
+  </div>`;
+
+  /* 3 · Bridge de drivers (loja selecionada vs loja média do canal) */
+  if(!bridgeSel||!comPdf.find(l=>l.codigo===bridgeSel)) bridgeSel=byGmv[0].codigo;
+  const Lb=comPdf.find(l=>l.codigo===bridgeSel);
+  const n=comPdf.length;
+  const totBol=comPdf.reduce((s,l)=>s+(l.boletos||0),0), totGmv=comPdf.reduce((s,l)=>s+(l.gmv||0),0);
+  const totItens=comPdf.reduce((s,l)=>s+(l.boletos||0)*(l.itensBoleto||0),0);
+  const avgBol=totBol/n, avgGmvStore=totGmv/n, canalTicket=totGmv/totBol, canalItens=totItens/totBol, canalVmi=canalTicket/canalItens;
+  const bBol=Lb.boletos, bTicket=Lb.gmv/Lb.boletos, bItens=Lb.itensBoleto, bVmi=bTicket/bItens;
+  const effVol=(bBol-avgBol)*canalTicket, effItens=(bItens-canalItens)*canalVmi*bBol, effVmi=(bVmi-canalVmi)*bItens*bBol; // efVmi usa bItens (absorve a interação cesta×valor) p/ somar exatamente
+  const effs=[
+    {lb:`${bBol>=avgBol?'Mais':'Menos'} cupons <small>(${fmtN(bBol)} vs ${fmtN(avgBol,0)} média)</small>`, v:effVol},
+    {lb:`Cesta ${bItens>=canalItens?'maior':'menor'} <small>(${fmtN(bItens,2)} vs ${fmtN(canalItens,2)} itens)</small>`, v:effItens},
+    {lb:`Valor do item ${bVmi>=canalVmi?'maior':'menor'} <small>(${fmtBRL(bVmi,2)} vs ${fmtBRL(canalVmi,2)})</small>`, v:effVmi}
+  ];
+  const maxEff=Math.max(...effs.map(e=>Math.abs(e.v)),1);
+  const effRow=e=>`<div class="hbar"><div class="hl">${e.lb}</div><div class="ht"><div class="hf" style="width:${(Math.abs(e.v)/maxEff*100).toFixed(1)}%;background:${e.v>=0?'#34C77B':'#E16358'}"></div></div><div class="hv" style="color:${e.v>=0?'var(--verde)':'var(--verm)'}">${e.v>=0?'+ ':'− '}${fmtBRL(Math.abs(e.v))}</div></div>`;
+  const b3=`<div class="an-sec"><div class="sec-t">3 · Bridge de drivers <span class="vtag medio">por que esta loja difere da média</span></div>
+    <p class="an-lead">Decompõe a diferença de GMV entre a loja e a <b>loja média do canal</b> em três alavancas: <b>cupons</b> (fluxo) × <b>itens/cupom</b> (cesta) × <b>valor do item</b> (mix/preço).</p>
+    <div class="strat-top"><select class="sel" id="fBridge">${byGmv.map(l=>`<option value="${l.codigo}" ${bridgeSel===l.codigo?'selected':''}>${esc(nomeLoja(l))}</option>`).join('')}</select></div>
+    <div class="hbars">
+      ${hbar('Loja média do canal', avgGmvStore/Lb.gmv*100, fmtBRL(avgGmvStore), 'linear-gradient(90deg,var(--surf3),var(--surf2))')}
+      ${effs.map(effRow).join('')}
+      ${hbar(`<b>${esc(nomeLoja(Lb))}</b>`, 100, `<b>${fmtBRL(Lb.gmv)}</b>`, GOLD)}
+    </div>
+    <p class="note">GMV do período. Volume + cesta + valor do item somam exatamente a diferença para a loja média. Tudo via CSV (sem asterisco do ABC).</p>
+  </div>`;
+
+  /* 4 · Mix por categoria cross-store (índice vs canal) */
+  const catsTop=[...catArr].sort((a,b)=>b.fat-a.fat).slice(0,9);
+  const idxColor=idx=>idx>=1.20?'he':idx>=0.80?'ve':'mo';
+  const b4=`<div class="an-sec"><div class="sec-t">4 · Mix por categoria <span class="vtag medio">índice vs canal · loja × categoria</span></div>
+    <p class="an-lead">Quanto cada categoria pesa no faturamento de cada loja, e se ela <b>super-indexa</b> (<span style="color:var(--verde)">verde</span>) ou <b>subindexa</b> (<span style="color:var(--verm)">vermelho</span>) vs a média do canal. Revela o viés estrutural de cada loja.</p>
+    <div class="tbl-wrap"><table class="hm"><thead><tr><th class="sku">Categoria <small>(% canal)</small></th>${byGmv.map(l=>`<th title="${esc(nomeLoja(l))}">${esc(nomeLoja(l).replace('Loja ','').slice(0,7))}</th>`).join('')}</tr></thead><tbody>
+    ${catsTop.map(c=>{ const chPct=c.fat/totFat; return `<tr><td class="sku">${esc(c.k)}<div class="pmarca">${fmtPct(chPct*100,0)} do canal</div></td>${byGmv.map(l=>{ const cl=A.catLoja[c.k]&&A.catLoja[c.k][l.codigo]; const lt=A.lojaTot[l.codigo].fat||1; const p=cl?cl.fat/lt:0; const idx=chPct?p/chPct:0; return `<td><span class="cell ${cl?idxColor(idx):'au'}" title="índice ${fmtN(idx,2)}× vs canal">${cl?fmtPct(p*100,0):'—'}</span></td>`; }).join('')}</tr>`; }).join('')}
+    </tbody></table></div>
+    <p class="note">Célula = % daquela categoria no faturamento da loja; cor = índice vs o peso da categoria no canal (verde ≥ 1,20× · vermelho ≤ 0,80×). PRM fora.</p>
+  </div>`;
+
+  v.innerHTML = b1 + b2 + b3 + b4;
+  const sb=$('#fBridge'); if(sb) sb.onchange=e=>{ bridgeSel=e.target.value; renderLucro(lojas, canal); };
+}
+
 /* ---------- Orquestração ---------- */
 function renderAll(){
   const lojas = todasLojas();
@@ -1556,6 +1691,7 @@ function renderAll(){
   renderCanal(lojas, canal, findings);
   renderAnalise(lojas, canal, findings);
   renderSortimento(lojas, canal);
+  renderLucro(lojas, canal);
   renderLojas(lojas);
   renderEstrategias(lojas, canal, findings);
 }
