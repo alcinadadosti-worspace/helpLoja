@@ -1288,7 +1288,7 @@ const _normOB=s=>String(s).toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
 const _KWOB=(()=>{ const L=[]; CAT_OB_SPEC.forEach((c,p)=>c[1].forEach(k=>{ const kk=_normOB(k).replace(/-/g,' '); L.push({kw:kk,cat:c[0],prio:p,len:kk.replace(/ /g,'').length}); })); L.sort((a,b)=>b.len-a.len||a.prio-b.prio); return L; })();
 function catOB(nome){ const flat=_normOB(nome).replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim(); const toks=new Set(flat.split(' ')); for(const {kw,cat} of _KWOB){ if(kw.includes(' ')){ if((' '+flat+' ').includes(' '+kw+' ')) return cat; } else if(toks.has(kw)) return cat; } return 'Outros'; }
 function aggCat(lojas){
-  const cat={}, catLoja={}, lojaTot={}, catMarca={};
+  const cat={}, catLoja={}, lojaTot={}, catMarca={}, marcaTot={}, marcaLoja={};
   for(const l of lojas){
     const s=(state.efetivas&&state.efetivas.get(l.codigo))||state.stores.get(l.codigo);
     if(!s||!s.abc||!s.abc.its) continue;
@@ -1298,10 +1298,12 @@ function aggCat(lojas){
       (cat[c]=cat[c]||{fat:0,custo:0,lucro:0,skus:new Set()}); cat[c].fat+=it.fat; cat[c].custo+=it.custo; cat[c].lucro+=it.lucro; cat[c].skus.add(it.sku);
       (catLoja[c]=catLoja[c]||{}); catLoja[c][l.codigo]=(catLoja[c][l.codigo]||0)+it.fat;
       (catMarca[c]=catMarca[c]||{}); catMarca[c][it.marca]=(catMarca[c][it.marca]||0)+it.fat;
+      marcaTot[it.marca]=(marcaTot[it.marca]||0)+it.fat;
+      (marcaLoja[it.marca]=marcaLoja[it.marca]||{}); marcaLoja[it.marca][l.codigo]=(marcaLoja[it.marca][l.codigo]||0)+it.fat;
       lojaTot[l.codigo].fat+=it.fat;
     }
   }
-  return {cat, catLoja, lojaTot, catMarca};
+  return {cat, catLoja, lojaTot, catMarca, marcaTot, marcaLoja};
 }
 function renderCategorias(lojas, canal){
   const v=$('#view-categorias');
@@ -1356,7 +1358,27 @@ function renderCategorias(lojas, canal){
     <p class="note">"Maior marca" = fatia da líder na categoria; quanto maior, mais a categoria depende de uma marca só (<span style="color:var(--verm)">vermelho ≥ 45%</span>). Útil pra ver risco de concentração e lacuna de marca.</p>
   </div>`;
 
-  v.innerHTML = b1 + b2 + b3 + b4;
+  /* 5 · Lacuna de marca por loja */
+  const brandCat={};
+  for(const ct in A.catMarca){ for(const m in A.catMarca[ct]){ const f=A.catMarca[ct][m]; if(!brandCat[m]||f>brandCat[m].f) brandCat[m]={cat:ct,f}; } }
+  const brandsTop=Object.entries(A.marcaTot).map(([m,f])=>({m,f})).sort((a,b)=>b.f-a.f).slice(0,14);
+  const idxC2=idx=>idx>=1.2?'he':idx>=0.8?'ve':'mo';
+  const gaps=[];
+  for(const {m,f} of brandsTop){ const netSh=f/totFat; if(netSh<0.004) continue;
+    for(const l of byGmv){ const sf=(A.marcaLoja[m]&&A.marcaLoja[m][l.codigo])||0; const lt=A.lojaTot[l.codigo].fat||1; const sh=sf/lt; const idx=netSh?sh/netSh:0;
+      if(idx<0.6) gaps.push({m, cat:(brandCat[m]||{}).cat, loja:nomeLoja(l), est:(netSh-sh)*lt}); } }
+  gaps.sort((a,b)=>b.est-a.est);
+  const b5=`<div class="an-sec"><div class="sec-t">5 · Lacuna de marca por loja <span class="vtag medio">marca forte que a loja subdesenvolve</span></div>
+    <p class="an-lead">Marcas que pesam na rede mas que <b>uma loja específica vende bem menos</b> (índice &lt; 0,6× do canal) — linha inteira mal trabalhada ali. <span style="color:var(--verde)">Verde</span> = super-desenvolve · <span style="color:var(--verm)">vermelho</span> = lacuna.</p>
+    <div class="tbl-wrap"><table class="hm"><thead><tr><th class="sku">Marca <small>(% canal · categoria)</small></th>${byGmv.map(l=>`<th title="${esc(nomeLoja(l))}">${esc(lojaCurta(nomeLoja(l)))}</th>`).join('')}</tr></thead><tbody>
+    ${brandsTop.map(({m,f})=>{ const netSh=f/totFat; return `<tr><td class="sku">${esc(m)}<div class="pmarca">${fmtPct(netSh*100,0)} · ${esc((brandCat[m]||{}).cat||'')}</div></td>${byGmv.map(l=>{ const sf=(A.marcaLoja[m]&&A.marcaLoja[m][l.codigo])||0; const lt=A.lojaTot[l.codigo].fat||1; const sh=sf/lt; const idx=netSh?sh/netSh:0; return `<td><span class="cell ${sf?idxC2(idx):'au'}" title="índice ${fmtN(idx,2)}×">${sf?fmtPct(sh*100,1):'—'}</span></td>`; }).join('')}</tr>`; }).join('')}
+    </tbody></table></div>
+    <div class="mini-t" style="margin:16px 0 8px">As maiores lacunas (potencial de chegar ao peso do canal)</div>
+    <table class="sku-tbl"><tbody>${gaps.slice(0,8).map(g=>`<tr><td><div class="pnome">${esc(g.m)}</div><div class="pmarca">${esc(g.cat||'')}</div></td><td>falta na <b>${esc(g.loja)}</b></td><td class="num"><b style="color:var(--ouro2)">${fmtBRL(g.est)}</b></td></tr>`).join('')}</tbody></table>
+    <p class="note">% = peso da marca no faturamento da loja; cor = índice vs o peso da marca no canal. Potencial = trazer a marca ao peso que ela tem no canal × faturamento da loja (ordem de grandeza). PRM fora.</p>
+  </div>`;
+
+  v.innerHTML = b1 + b2 + b3 + b4 + b5;
 }
 
 /* ---------- Render: Apresentação (capa + plano) ---------- */

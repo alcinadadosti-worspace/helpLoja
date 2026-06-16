@@ -297,3 +297,9 @@ Usuário pediu os 3 próximos passos de uma vez:
 3. **Marca × categoria** (novo bloco 4 da aba Categorias) — `aggCat` agora também agrega `catMarca[cat][marca]`. Por categoria: top 3 marcas + fatia da líder (vermelho ≥45% = dependência). **Achado:** categorias grandes (Perfumaria líder 13%, Gifts 21%, Desodorantes 23%) são diversificadas; as **de cuidado dependem de uma marca só** — Maquiagem **77% Make B**, Cuidados Faciais **74% Botik**, Cabelos **57% Match**, Sabonete **56% Cuide-se Bem**. Risco de concentração de marca + lacuna de marca.
 
 **Validação:** `node --check` OK; Chromium — Categorias 4 seções, marca×cat 10 linhas; consistência Categorias↔Lucro mantida; inspeção (8 abas + 3 seletores + rename/XSS) **zero erros**.
+
+## 21. Lacuna de marca por loja (16/06/2026)
+
+Bloco 5 da aba Categorias (`aggCat` passou a agregar também `marcaTot` e `marcaLoja`). Para cada marca forte da rede, mostra em quais lojas ela é **subdesenvolvida** (índice da participação da marca na loja vs no canal). Heatmap marca × loja (top 14 marcas, cor por índice) + lista das maiores lacunas em R$ (potencial = trazer a marca ao peso do canal × faturamento da loja). `brandCat` = categoria principal de cada marca (via `catMarca`). Limiar de lacuna: índice < 0,6×.
+
+**Achado:** poucas lacunas grandes (as lojas têm mix de marca parecido — mesmo catálogo), mas a **Palmeira** concentra as maiores: subdesenvolve **Botik** (líder de Cuidados Faciais, ~R$ 10,5k) e **Quasar** (perfumaria, ~R$ 9,5k) — coerente com a fraqueza de cesta/recorrência dela (e com o buraco de gerência). **Validação:** Categorias 5 seções, heatmap 14 marcas, inspeção (8 abas + seletores + rename/XSS) zero erros.
