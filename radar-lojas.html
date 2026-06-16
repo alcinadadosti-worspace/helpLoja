@@ -366,6 +366,7 @@ footer{padding:26px clamp(16px,4vw,40px);border-top:1px solid var(--line);color:
   <button class="tab" data-v="canal">Diagnóstico</button>
   <button class="tab" data-v="analise">Análise</button>
   <button class="tab" data-v="sortimento">Sortimento</button>
+  <button class="tab" data-v="categorias">Categorias</button>
   <button class="tab" data-v="lucro">Lucro</button>
   <button class="tab" data-v="lojas">Lojas</button>
   <button class="tab" data-v="estrategias">Benchmark e achados</button>
@@ -376,6 +377,7 @@ footer{padding:26px clamp(16px,4vw,40px);border-top:1px solid var(--line);color:
   <section class="view" id="view-canal"></section>
   <section class="view" id="view-analise"></section>
   <section class="view" id="view-sortimento"></section>
+  <section class="view" id="view-categorias"></section>
   <section class="view" id="view-lucro"></section>
   <section class="view" id="view-lojas"></section>
   <section class="view" id="view-estrategias"></section>
@@ -1275,6 +1277,86 @@ function resumoSlack(lojas, canal, findings){
   return t;
 }
 
+/* ---------- Categorias (taxonomia oficial do usuário) ---------- */
+const CAT_OB_SPEC=[
+ ['Demonstradores',['DEMONSTRADOR','DEMONSTRAD','DEMON','FLAC','DEM','CJ']],
+ ['Cabelos',['MASCARA CAPILAR','MASC CAP','LEAVE-IN','LEAVE IN','TRAT CAP','CONDICIONADOR','QUERATINA','CAPILAR','SHAMPOO','SHAMPO','CONDICION','SIAGE','CABELO','CACHOS','MATCH','AMACI','HAIR','SHAMP','COND','CR PENT']],
+ ['Maquiagem',['MASC CILIO','BASE STICK','BASE LIQ','BLUSH LIQ','BAT LIQ','FAC STICK','HID LAB','OIL SHIN','PLT MULTIF','PO COMP','CORR LIQ','SOBRANC','CORRET','LAP OLH','BATOM','PRIMER','SOMBRA','BLUSH','GLOSS','ILUM','MAKE','BALM','GLIT','SOUL','BASE','MASC','SOMB','GLOS','PLT','BAS','BAT','PO','LAP']],
+ ['Perfumaria',['PARFUM','PARFUN','COLONIA','EDP','EAU','COL']],
+ ['Barba',['BARBA','BARB']],
+ ['Acessorios',['MASSAGEADOR','VAPORIZADOR','FRASQUEIRA','NECESSAIRE','APONTADOR','CURVADOR','PINCEIS','ESPELHO','ESPONJA','PALETA','PINCEL','NECESS','MASSAG','MALETA','TOALHA','BOLSA','ESPNJ','PORTA','LENCO','LUVA','CASE','CLIP']],
+ ['Cuidados com a Pele',['INSTANCE CR','CORPORAL','CREME','MAOS','CPO','CREM','HID','MAO','CR']],
+ ['Cuidados Faciais',['NEO DERMO','FACIAL','SKINQ','SERUM','SRUM','NEO D','SKIN','FAC']],
+ ['Desodorantes',['AEROSSOL','ROLL ON','BDY SPR','ANTIT','AER','ANT','DES','SPR']],
+ ['Embalagens',['KIT TAG','SACOLA','CAIXA','TAG']],
+ ['Gifts',['PMPCK','ESTJ','KIT']],
+ ['Sabonete Corpo',['ESPUM BANHO','ESF CPO','SAB BARR','SHW GEL','SHW','SAB']],
+ ['Solar',['PROT','SOL','PR']],
+ ['Unhas',['ESMALTE','ESMLT']],
+ ['Oleos',['OLEO','OL']]
+];
+const _normOB=s=>String(s).toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+const _KWOB=(()=>{ const L=[]; CAT_OB_SPEC.forEach((c,p)=>c[1].forEach(k=>{ const kk=_normOB(k).replace(/-/g,' '); L.push({kw:kk,cat:c[0],prio:p,len:kk.replace(/ /g,'').length}); })); L.sort((a,b)=>b.len-a.len||a.prio-b.prio); return L; })();
+function catOB(nome){ const flat=_normOB(nome).replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim(); const toks=new Set(flat.split(' ')); for(const {kw,cat} of _KWOB){ if(kw.includes(' ')){ if((' '+flat+' ').includes(' '+kw+' ')) return cat; } else if(toks.has(kw)) return cat; } return 'Outros'; }
+function aggCat(lojas){
+  const cat={}, catLoja={}, lojaTot={};
+  for(const l of lojas){
+    const s=(state.efetivas&&state.efetivas.get(l.codigo))||state.stores.get(l.codigo);
+    if(!s||!s.abc||!s.abc.its) continue;
+    lojaTot[l.codigo]={fat:0};
+    for(const it of s.abc.its){
+      const c=catOB(it.nome);
+      (cat[c]=cat[c]||{fat:0,custo:0,lucro:0,skus:new Set()}); cat[c].fat+=it.fat; cat[c].custo+=it.custo; cat[c].lucro+=it.lucro; cat[c].skus.add(it.sku);
+      (catLoja[c]=catLoja[c]||{}); catLoja[c][l.codigo]=(catLoja[c][l.codigo]||0)+it.fat;
+      lojaTot[l.codigo].fat+=it.fat;
+    }
+  }
+  return {cat, catLoja, lojaTot};
+}
+function renderCategorias(lojas, canal){
+  const v=$('#view-categorias');
+  const comPdf=lojas.filter(l=>{ const s=(state.efetivas&&state.efetivas.get(l.codigo))||state.stores.get(l.codigo); return s&&s.abc&&s.abc.its; });
+  if(!comPdf.length){ v.innerHTML=`<div class="empty"><b>A análise de categorias precisa do PDF do ABC.</b></div>`; return; }
+  const A=aggCat(comPdf);
+  const byGmv=[...comPdf].sort((a,b)=>(b.gmvMes||0)-(a.gmvMes||0));
+  const cats=Object.entries(A.cat).map(([k,x])=>({k,fat:x.fat,custo:x.custo,lucro:x.lucro,n:x.skus.size,m:x.fat?x.lucro/x.fat*100:0})).sort((a,b)=>b.fat-a.fat);
+  const totFat=cats.reduce((s,c)=>s+c.fat,0)||1;
+  const reais=cats.filter(c=>c.k!=='Outros');
+  const outPct=(cats.find(c=>c.k==='Outros')||{fat:0}).fat/totFat*100;
+  const hbar=(label,wpct,valHtml,color)=>`<div class="hbar"><div class="hl">${label}</div><div class="ht"><div class="hf" style="width:${Math.max(0,Math.min(100,wpct)).toFixed(1)}%;background:${color}"></div></div><div class="hv">${valHtml}</div></div>`;
+  const GOLD='linear-gradient(90deg,#D9B25F,#E8CD8F)';
+
+  /* 1 · Concentração por categoria */
+  const giniC=gini(reais.map(c=>c.fat));
+  const top1=reais[0], top3=reais.slice(0,3).reduce((s,c)=>s+c.fat,0)/totFat*100;
+  const verC=giniC>=0.6?'ruim':giniC>=0.45?'medio':'bom';
+  const b1=`<div class="an-sec"><div class="sec-t">1 · Concentração por categoria <span class="vtag ${verC}">Gini ${fmtN(giniC,2)}</span></div>
+    <p class="an-lead">O quanto o canal depende de poucas categorias. <b>${esc(top1.k)}</b> sozinha é <b>${fmtPct(top1.fat/totFat*100,0)}</b> do faturamento; as 3 maiores somam <b>${fmtPct(top3,0)}</b>. Concentração alta = exposto a uma categoria só.</p>
+    <div class="hbars">${reais.map(c=>hbar(esc(c.k), c.fat/totFat*100, `${fmtPct(c.fat/totFat*100,1)} <small>· ${c.n} SKUs</small>`, GOLD)).join('')}</div>
+    <p class="note">Classificação pela sua taxonomia oficial (15 categorias, regra "palavra mais específica ganha"). "Outros" (sem palavra-chave) = ${fmtPct(outPct,1)}. Desodorante colônia conta como Perfumaria.</p>
+  </div>`;
+
+  /* 2 · Mix por loja (índice vs canal) */
+  const catsTop=reais.slice(0,10);
+  const idxC=idx=>idx>=1.2?'he':idx>=0.8?'ve':'mo';
+  const b2=`<div class="an-sec"><div class="sec-t">2 · Mix por loja <span class="vtag medio">índice vs canal</span></div>
+    <p class="an-lead">Quanto cada categoria pesa em cada loja, e se ela <b>super-indexa</b> (<span style="color:var(--verde)">verde</span>) ou <b>subindexa</b> (<span style="color:var(--verm)">vermelho</span>) vs o canal. Revela o perfil de cada loja.</p>
+    <div class="tbl-wrap"><table class="hm"><thead><tr><th class="sku">Categoria <small>(% canal)</small></th>${byGmv.map(l=>`<th title="${esc(nomeLoja(l))}">${esc(lojaCurta(nomeLoja(l)))}</th>`).join('')}</tr></thead><tbody>
+    ${catsTop.map(c=>{ const chP=c.fat/totFat; return `<tr><td class="sku">${esc(c.k)}<div class="pmarca">${fmtPct(chP*100,0)} do canal</div></td>${byGmv.map(l=>{ const f=(A.catLoja[c.k]&&A.catLoja[c.k][l.codigo])||0; const lt=A.lojaTot[l.codigo].fat||1; const p=f/lt; const idx=chP?p/chP:0; return `<td><span class="cell ${f?idxC(idx):'au'}" title="índice ${fmtN(idx,2)}×">${f?fmtPct(p*100,0):'—'}</span></td>`; }).join('')}</tr>`; }).join('')}
+    </tbody></table></div>
+  </div>`;
+
+  /* 3 · Margem por categoria */
+  const stackBar=o=>{ const f=o.fat||1; const c=o.custo/f*100, lu=o.lucro/f*100, im=Math.max(0,100-c-lu); return `<div class="stack"><span style="width:${c.toFixed(1)}%;background:#4a5c52"></span>${im>0.3?`<span style="width:${im.toFixed(1)}%;background:#E16358"></span>`:''}<span style="width:${lu.toFixed(1)}%;background:#E8CD8F"></span></div>`; };
+  const b3=`<div class="an-sec"><div class="sec-t">3 · Margem por categoria <span class="vtag medio">faturamento × margem bruta</span></div>
+    <p class="an-lead">Cada categoria como tamanho (faturamento) e <b>margem bruta</b>. As grandes em receita nem sempre são as de melhor margem — vale saber onde a margem mora.</p>
+    <div>${reais.map(c=>`<div class="stack-row"><div class="sl">${esc(c.k)}</div>${stackBar(c)}<div class="sv">${fmtBRL(c.fat)} · marg ${fmtPct(c.m,0)}</div></div>`).join('')}</div>
+    <p class="note"><span style="color:#9DB7A8">■</span> custo · <span style="color:var(--ouro2)">■</span> margem bruta (% do faturamento da categoria).</p>
+  </div>`;
+
+  v.innerHTML = b1 + b2 + b3;
+}
+
 /* ---------- Render: Apresentação (capa + plano) ---------- */
 function renderApresentacao(lojas, canal, findings){
   const v=$('#view-apresentacao');
@@ -1838,6 +1920,7 @@ function renderAll(){
   renderCanal(lojas, canal, findings);
   renderAnalise(lojas, canal, findings);
   renderSortimento(lojas, canal);
+  renderCategorias(lojas, canal);
   renderLucro(lojas, canal);
   renderLojas(lojas);
   renderEstrategias(lojas, canal, findings);

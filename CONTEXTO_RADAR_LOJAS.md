@@ -6,7 +6,7 @@
 
 ## 1. O que é
 
-**Radar Lojas** é uma aplicação standalone (arquivo HTML único, processamento 100% client-side no navegador) de **diagnóstico do canal loja** do Grupo Alcina Maria (rede O Boticário, Penedo/AL). O usuário arrasta relatórios brutos exportados do ERP e a app produz uma **análise, não uma prescrição**: leitura do canal, benchmark entre as lojas, curva ABC e mix por loja, achados por loja com materialidade em R$ e ressalvas, **uma aba de análise estruturada (Gini/Pareto/Lorenz, coef. de variação, fronteira peer), contexto de movimentação de equipe (§14), análise de sortimento por SKU cruzado entre lojas (§15), uma aba de Lucro (pools de lucro, lucro/cupom, bridge de drivers, mix por categoria, risco de lucro, gap de categoria, margem mix×taxa, estrutura de custo) + correlação entre alavancas (§16), e uma aba de Apresentação (capa + plano, abre por padrão, §17)**. **Remodelada de motor de estratégias → ferramenta de diagnóstico em 15/06/2026 (ver §13) — saíram checklist de ações, "potencial total", waterfall e simulador.**
+**Radar Lojas** é uma aplicação standalone (arquivo HTML único, processamento 100% client-side no navegador) de **diagnóstico do canal loja** do Grupo Alcina Maria (rede O Boticário, Penedo/AL). O usuário arrasta relatórios brutos exportados do ERP e a app produz uma **análise, não uma prescrição**: leitura do canal, benchmark entre as lojas, curva ABC e mix por loja, achados por loja com materialidade em R$ e ressalvas, **uma aba de análise estruturada (Gini/Pareto/Lorenz, coef. de variação, fronteira peer), contexto de movimentação de equipe (§14), análise de sortimento por SKU cruzado entre lojas (§15), uma aba de Lucro (pools de lucro, lucro/cupom, bridge de drivers, mix por categoria, risco de lucro, gap de categoria, margem mix×taxa, estrutura de custo) + correlação entre alavancas (§16), uma aba de Apresentação (capa + plano, abre por padrão, §17), e uma aba de Categorias com a taxonomia oficial do usuário (§18)**. **Remodelada de motor de estratégias → ferramenta de diagnóstico em 15/06/2026 (ver §13) — saíram checklist de ações, "potencial total", waterfall e simulador.**
 
 - **Stack:** HTML/CSS/JS vanilla + pdf.js 3.11.174 (cdnjs) + SheetJS 0.18.5 (cdnjs). Sem build, sem servidor, sem localStorage (estado só em memória).
 - **Padrão da casa:** mesmo modelo das ferramentas Foco Atividade e painel-vendas (arquivo único que processa arquivos reais no browser).
@@ -263,3 +263,18 @@ O usuário vai **apresentar ao vivo pela app, para os gerentes de loja, com o ob
 Tudo computado dos dados reais (atualiza se reupar). **Validação:** Chromium — boot abre na Apresentação, hero/3 KPIs/4 cards, inspeção completa (7 abas + 3 seletores + rename/XSS) zero erros.
 
 **Roteiro de fala (gerentes, ao vivo):** abrir na capa → Benchmark (cada um vs a melhor da rede) → Lucro/mix×taxa (margem é execução) → Análise/fronteira (R$ provados + espelho) → Sortimento (o concreto por loja) → voltar à capa pro plano/aprovação.
+
+## 18. Aba Categorias — taxonomia oficial do usuário (16/06/2026)
+
+Início de uma remodelagem maior. O usuário passou a **taxonomia oficial dele** (15 categorias × palavras-chave) — mais granular que o `categoriaDe` heurístico antigo. Nova aba **Categorias** (após Sortimento) → **8 abas**.
+
+**Classificador `catOB(nome)`** (const `CAT_OB_SPEC` + lista global `_KWOB`): regra **"palavra mais específica (mais longa) ganha"** entre TODAS as categorias (não só dentro de uma) — porque os conflitos eram cross-categoria (uma frase específica numa categoria de baixa prioridade perdia para um token curto numa de alta). Match: frase (com espaço) = substring de tokens consecutivos; token único = igualdade exata (evita "PR" casar com PRIMER etc.). Empate de tamanho → ordem da tabela. Adicionei algumas chaves óbvias pros "Outros" (COLONIA, SERUM/SRUM, CAIXA, LAP, CR, ESPUM BANHO, CR PENT) — "Outros" ficou ~1%.
+
+**Decisão de negócio (confirmada pelo usuário):** **"DES COL" (desodorante colônia) = Perfumaria** — porque é o produto de perfume do dia a dia; "Desodorantes" fica só com antitranspirante (roll-on/aerossol). Isso vale **~60% do faturamento** (Perfumaria 60%, Cuidados com a Pele 11%, Gifts 11%, top-3 = 83%). **Validei a classificação rodando nos 1.908 SKUs reais ANTES de construir a UI** (passo essencial — a classificação errada quebraria tudo).
+
+3 blocos (`aggCat` agrega fat/custo/lucro/SKUs por categoria e cat×loja, via `catOB`):
+1. **Concentração por categoria** — Gini (deu **0,76** — muito concentrado em Perfumaria) + Pareto (barras por categoria).
+2. **Mix por loja** — heatmap categoria × loja, índice vs canal (verde super / vermelho subindexa).
+3. **Margem por categoria** — stacked custo × margem bruta por categoria.
+
+**Validação:** `node --check` OK; Chromium — 3 seções, Gini 0,76, 14 barras, heatmap 10 linhas; inspeção (8 abas + 3 seletores + rename/XSS) zero erros. **Próximo:** o usuário sinalizou continuar a remodelagem — `catOB` pode futuramente substituir o `categoriaDe` heurístico em todo o app (Lucro, Diagnóstico recorrência, etc.).
