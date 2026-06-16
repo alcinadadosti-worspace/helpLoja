@@ -424,7 +424,10 @@ const CONFIG = {
     caudaPct:         { ok: 20, atencao: 30 },        // % de SKUs com < R$100 no período
   },
   simulador: { maxDescPP: 8, maxItens: 1.0, maxBoletosDia: 10 },
-  itemCrossFallback: 45  // R$ do item de venda adicional quando a loja não tem Corpo & Banho
+  itemCrossFallback: 45, // R$ do item de venda adicional quando a loja não tem a categoria base
+  // Categorias de recompra de alto valor (recorrência) — taxonomia catOB. Estreita (make+facial+cabelo) discrimina as
+  // lojas; incluir 'Cuidados com a Pele' e 'Sabonete Corpo' achata tudo em ~22% (testado). Edite aqui se quiser a recompra total.
+  catRecorrencia: ['Maquiagem','Cuidados Faciais','Cabelos']
 };
 
 /* ---------- Utils ---------- */
@@ -593,21 +596,7 @@ function marcaDe(nome){
     FREE:'Free', INSENSATEZ:'Insensatez', HADIYA:'Hadiya', AU:'Au.Migos (pet)' };
   return M[first] || 'Outros';
 }
-function categoriaDe(nome){
-  const n = nome.toUpperCase();
-  if (/^(SACOLA|CAIXA|CX)\b/.test(n)) return 'Embalagens/Inst.';
-  if (/^(ESTJ|KIT|COMB)\b/.test(n)) return 'Kits & Estojos';
-  if (/NECESS/.test(n)) return 'Acessórios';
-  if (/\b(EDP|EDC|DES COL|COLONIA)\b/.test(n) && !/SPLSH|BDY SPR/.test(n)) return 'Perfumaria';
-  if (/^(SOPHIE|NEXT|DREAM|MA CHERIE)\b.*\bCOL\b/.test(n) && !/SPLSH/.test(n)) return 'Perfumaria';
-  if (/SPLSH|BDY SPR|HAIR MIST/.test(n)) return 'Body splash/spray';
-  if (/\b(BAT|LAP|BAS LIQ|BASE LIQ|MASC CIL|PO COMP|BAS PO|GLOS|CORRET|BLUSH|PALETTE|PLT|ILUM|SOBRANC|ESPNJ|BRLH LAB|HID LAB|BALM)\b/.test(n)) return 'Maquiagem';
-  if (/\b(SHAMP|COND|MASC CAP|CR PENT|CREM PENT|LEAVE|TON CAP|ACIDIFICANTE|QUERATINA|SPR CAP|SPR BRLH|GEL FIX|PASTA MODEL)\b/.test(n)) return 'Capilar';
-  if (/\b(SRUM|SRM|GEL LIMP FAC|GEL LIM FAC|GEL CONC LIMP|AGUA MICLR|CR HID FAC|CREM HID FAC|MULTIPR FAC|MULTIREP FAC|ADESIVO FAC|GEL HID FAC|CR CON OLH|CR NUTR FIRM|GEL\/LIMP FAC)\b/.test(n)) return 'Skincare';
-  if ((/\b(BOTI SUN|PROT SOL|FPS)\b/.test(n)) && !/MAO/.test(n)) return 'Solar';
-  if (/BOTI BABY/.test(n)) return 'Infantil';
-  return 'Corpo & Banho';
-}
+/* categoriaDe (heurístico) removido em 16/06/2026 — substituído pelo catOB (taxonomia oficial do usuário), ver §18/§19. */
 
 /* ---------- Análise do ABC por loja ---------- */
 function analisarABC(parsed){
@@ -624,7 +613,7 @@ function analisarABC(parsed){
     (byMarca[i.marca] = byMarca[i.marca] || {fat:0,qtd:0});
     byMarca[i.marca].fat+=i.fat; byMarca[i.marca].qtd+=i.qtd;
   }
-  const recorrFat = ['Maquiagem','Cuidados Faciais','Cabelos'].reduce((s,c)=>s+(byCat[c]?byCat[c].fat:0),0); // recorrência = categorias de recompra rápida (era Maquiagem+Skincare+Capilar)
+  const recorrFat = CONFIG.catRecorrencia.reduce((s,c)=>s+(byCat[c]?byCat[c].fat:0),0); // recorrência = categorias de recompra (configurável em CONFIG.catRecorrencia)
   const cb = byCat['Cuidados com a Pele']; // preço-base do "2º item" (era Corpo & Banho)
   const kits = {};
   for (const i of its){ const m = i.nome.match(/\b(NAT|MAES|AMOR|PAIS|CRIANC)\/(\d{2})\b/); if (m){ const k=m[1]+'/'+m[2]; (kits[k]=kits[k]||{fat:0,qtd:0,skus:0}); kits[k].fat+=i.fat; kits[k].qtd+=i.qtd; kits[k].skus++; } }
@@ -1299,7 +1288,7 @@ const _normOB=s=>String(s).toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
 const _KWOB=(()=>{ const L=[]; CAT_OB_SPEC.forEach((c,p)=>c[1].forEach(k=>{ const kk=_normOB(k).replace(/-/g,' '); L.push({kw:kk,cat:c[0],prio:p,len:kk.replace(/ /g,'').length}); })); L.sort((a,b)=>b.len-a.len||a.prio-b.prio); return L; })();
 function catOB(nome){ const flat=_normOB(nome).replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim(); const toks=new Set(flat.split(' ')); for(const {kw,cat} of _KWOB){ if(kw.includes(' ')){ if((' '+flat+' ').includes(' '+kw+' ')) return cat; } else if(toks.has(kw)) return cat; } return 'Outros'; }
 function aggCat(lojas){
-  const cat={}, catLoja={}, lojaTot={};
+  const cat={}, catLoja={}, lojaTot={}, catMarca={};
   for(const l of lojas){
     const s=(state.efetivas&&state.efetivas.get(l.codigo))||state.stores.get(l.codigo);
     if(!s||!s.abc||!s.abc.its) continue;
@@ -1308,10 +1297,11 @@ function aggCat(lojas){
       const c=catOB(it.nome);
       (cat[c]=cat[c]||{fat:0,custo:0,lucro:0,skus:new Set()}); cat[c].fat+=it.fat; cat[c].custo+=it.custo; cat[c].lucro+=it.lucro; cat[c].skus.add(it.sku);
       (catLoja[c]=catLoja[c]||{}); catLoja[c][l.codigo]=(catLoja[c][l.codigo]||0)+it.fat;
+      (catMarca[c]=catMarca[c]||{}); catMarca[c][it.marca]=(catMarca[c][it.marca]||0)+it.fat;
       lojaTot[l.codigo].fat+=it.fat;
     }
   }
-  return {cat, catLoja, lojaTot};
+  return {cat, catLoja, lojaTot, catMarca};
 }
 function renderCategorias(lojas, canal){
   const v=$('#view-categorias');
@@ -1354,7 +1344,19 @@ function renderCategorias(lojas, canal){
     <p class="note"><span style="color:#9DB7A8">■</span> custo · <span style="color:var(--ouro2)">■</span> margem bruta (% do faturamento da categoria).</p>
   </div>`;
 
-  v.innerHTML = b1 + b2 + b3;
+  /* 4 · Marca por categoria (quem domina cada categoria) */
+  const b4=`<div class="an-sec"><div class="sec-t">4 · Marca por categoria <span class="vtag medio">quem domina cada categoria</span></div>
+    <p class="an-lead">Quais marcas puxam cada categoria — e onde a categoria <b>depende demais de uma marca só</b> (risco se ela falha, falta ou perde força). Top 3 marcas de cada categoria.</p>
+    <table class="sku-tbl"><thead><tr><th>Categoria</th><th>Marcas líderes (% da categoria)</th><th class="num">Maior marca</th></tr></thead><tbody>
+    ${reais.slice(0,10).map(c=>{ const mk=Object.entries(A.catMarca[c.k]||{}).sort((a,b)=>b[1]-a[1]); const topShare=mk.length?mk[0][1]/c.fat*100:0;
+      return `<tr><td><div class="pnome">${esc(c.k)}</div><div class="pmarca">${fmtBRL(c.fat)} · ${mk.length} marcas</div></td>
+      <td>${mk.slice(0,3).map(([m,f])=>`<span class="skuchip"><b>${esc(m)}</b> ${fmtPct(f/c.fat*100,0)}</span>`).join('')}</td>
+      <td class="num"><b style="color:${topShare>=45?'var(--verm)':topShare>=30?'var(--ambar)':'var(--verde)'}">${fmtPct(topShare,0)}</b></td></tr>`; }).join('')}
+    </tbody></table>
+    <p class="note">"Maior marca" = fatia da líder na categoria; quanto maior, mais a categoria depende de uma marca só (<span style="color:var(--verm)">vermelho ≥ 45%</span>). Útil pra ver risco de concentração e lacuna de marca.</p>
+  </div>`;
+
+  v.innerHTML = b1 + b2 + b3 + b4;
 }
 
 /* ---------- Render: Apresentação (capa + plano) ---------- */

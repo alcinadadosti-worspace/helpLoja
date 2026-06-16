@@ -287,3 +287,13 @@ O usuário notou a inconsistência: a aba Categorias usava `catOB` (taxonomia of
 3. **`precoItemCB`** (preço-base do "2º item" no cálculo de cesta): `byCat['Corpo & Banho']` → `byCat['Cuidados com a Pele']` (≈ R$ 34,35).
 
 `categoriaDe` virou **código morto** (mantido, não chamado). Ordem OK: `catOB`/`_KWOB` (const ~linha 1300) são inicializados antes do `analisarABC` rodar (no `initSeed`, no fim do script). **Verificado:** Categorias e Lucro agora mostram a MESMA categoria top (Perfumaria) — `CONSISTENTE: true`; seed carrega com selo ✓; inspeção das 8 abas + seletores + rename/XSS zero erros. O selo do rodapé é imune (valida fat/custo/lucro/qtd, não categoria). Label "(make·skin·cap)" da recorrência ficou (ainda razoável: Maquiagem+Cuidados Faciais+Cabelos).
+
+## 20. Remodelagem: 3 ajustes (16/06/2026)
+
+Usuário pediu os 3 próximos passos de uma vez:
+
+1. **Limpeza** — `categoriaDe` (heurístico, já morto desde §19) **removido**. "Outros" da classificação `catOB` caiu para **~1,0%** (chaves óbvias já tinham sido adicionadas em §18).
+2. **Recorrência configurável** — nova `CONFIG.catRecorrencia` (default `['Maquiagem','Cuidados Faciais','Cabelos']`). **Decisão informada por dado:** testei incluir 'Cuidados com a Pele' + 'Sabonete Corpo' (a pergunta do usuário) → recorrência vai a **~22% uniforme em todas as lojas** (Penedo 25, Palmeira 21…), **matando o poder de discriminar**. Mantida a definição **estreita** (recompra de alto valor, ~7,7%, com Penedo destacando 10%). Régua `SPEC.recorr` inalterada. `analisarABC` usa `CONFIG.catRecorrencia.reduce(...)`.
+3. **Marca × categoria** (novo bloco 4 da aba Categorias) — `aggCat` agora também agrega `catMarca[cat][marca]`. Por categoria: top 3 marcas + fatia da líder (vermelho ≥45% = dependência). **Achado:** categorias grandes (Perfumaria líder 13%, Gifts 21%, Desodorantes 23%) são diversificadas; as **de cuidado dependem de uma marca só** — Maquiagem **77% Make B**, Cuidados Faciais **74% Botik**, Cabelos **57% Match**, Sabonete **56% Cuide-se Bem**. Risco de concentração de marca + lacuna de marca.
+
+**Validação:** `node --check` OK; Chromium — Categorias 4 seções, marca×cat 10 linhas; consistência Categorias↔Lucro mantida; inspeção (8 abas + 3 seletores + rename/XSS) **zero erros**.
