@@ -6,7 +6,7 @@
 
 ## 1. O que é
 
-**Radar Lojas** é uma aplicação standalone (arquivo HTML único, processamento 100% client-side no navegador) de **diagnóstico do canal loja** do Grupo Alcina Maria (rede O Boticário, Penedo/AL). O usuário arrasta relatórios brutos exportados do ERP e a app produz uma **análise, não uma prescrição**: leitura do canal, benchmark entre as lojas, curva ABC e mix por loja, achados por loja com materialidade em R$ e ressalvas, **uma aba de análise estruturada (Gini/Pareto/Lorenz, coef. de variação, fronteira peer), contexto de movimentação de equipe (§14), análise de sortimento por SKU cruzado entre lojas (§15), e uma aba de Lucro (pools de lucro, lucro/cupom, bridge de drivers, mix por categoria) + correlação entre alavancas (§16)**. **Remodelada de motor de estratégias → ferramenta de diagnóstico em 15/06/2026 (ver §13) — saíram checklist de ações, "potencial total", waterfall e simulador.**
+**Radar Lojas** é uma aplicação standalone (arquivo HTML único, processamento 100% client-side no navegador) de **diagnóstico do canal loja** do Grupo Alcina Maria (rede O Boticário, Penedo/AL). O usuário arrasta relatórios brutos exportados do ERP e a app produz uma **análise, não uma prescrição**: leitura do canal, benchmark entre as lojas, curva ABC e mix por loja, achados por loja com materialidade em R$ e ressalvas, **uma aba de análise estruturada (Gini/Pareto/Lorenz, coef. de variação, fronteira peer), contexto de movimentação de equipe (§14), análise de sortimento por SKU cruzado entre lojas (§15), uma aba de Lucro (pools de lucro, lucro/cupom, bridge de drivers, mix por categoria, risco de lucro, gap de categoria, margem mix×taxa, estrutura de custo) + correlação entre alavancas (§16), e uma aba de Apresentação (capa + plano, abre por padrão, §17)**. **Remodelada de motor de estratégias → ferramenta de diagnóstico em 15/06/2026 (ver §13) — saíram checklist de ações, "potencial total", waterfall e simulador.**
 
 - **Stack:** HTML/CSS/JS vanilla + pdf.js 3.11.174 (cdnjs) + SheetJS 0.18.5 (cdnjs). Sem build, sem servidor, sem localStorage (estado só em memória).
 - **Padrão da casa:** mesmo modelo das ferramentas Foco Atividade e painel-vendas (arquivo único que processa arquivos reais no browser).
@@ -249,3 +249,17 @@ Pedido: construir as **4 análises novas** propostas (lente de lucro, mix por ca
 **Achado do CSV (releitura):** a coluna **"Crescimento ano anterior" existe mas está vazia** — o ERP exporta YoY, só não veio populado neste arquivo. Um export populado destrava tendência.
 
 **Helpers novos:** `aggProfit`, `renderLucro`, `pearson`, const `bridgeSel`. CSS: `.lucro-cols`, `.corr`. **Validação:** `node --check` OK; Chromium — bridge fecha exato nas 6 lojas, correlação 49 células, bugcheck completo (6 abas + rename + XSS) zero erros de console.
+
+## 17. Aba Apresentação — capa + plano (16/06/2026)
+
+O usuário vai **apresentar ao vivo pela app, para os gerentes de loja, com o objetivo de mostrar a oportunidade e aprovar um plano**. Nova aba **Apresentação** (1ª, `data-v="apresentacao"`, **abre por padrão** — `on` movido de canal para ela) → **7 abas**.
+
+`renderApresentacao(lojas, canal, findings)`: recomputa a fronteira de oportunidade (opDesc+opItens+opFlux realista, ~R$ 113k/mês = **R$ 1,36M/ano, +20%**) e o espelho (cesta/desconto champ entre lojas não-micro). Layout estilo slide (CSS bloco `APRESENTAÇÃO`):
+- **Hero** com a mensagem central ("vende bem, falta execução; a rede prova R$ X/ano").
+- **3 KPIs grandes**: faturamento/ano, oportunidade/ano, +% sobre GMV.
+- **O plano — 4 alavancas**, cada uma com a loja que prova: (1) desconto (Palmeira 18,5%), (2) cesta/2º item (Coruripe 2,91), (3) capturar datas/kits (R$ 319k), (4) campeão em todas (lacunas). Tom de gerente (operacional, acionável).
+- Callout do **espelho** (Coruripe↔Palmeira se ensinam — "sem consultoria").
+
+Tudo computado dos dados reais (atualiza se reupar). **Validação:** Chromium — boot abre na Apresentação, hero/3 KPIs/4 cards, inspeção completa (7 abas + 3 seletores + rename/XSS) zero erros.
+
+**Roteiro de fala (gerentes, ao vivo):** abrir na capa → Benchmark (cada um vs a melhor da rede) → Lucro/mix×taxa (margem é execução) → Análise/fronteira (R$ provados + espelho) → Sortimento (o concreto por loja) → voltar à capa pro plano/aprovação.

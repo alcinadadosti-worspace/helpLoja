@@ -198,6 +198,23 @@ table.rank{border-collapse:collapse;width:100%;min-width:980px;font-size:12.5px}
 @keyframes wfGrow{from{transform:scaleX(.0001)}to{transform:scaleX(1)}}
 @media(max-width:560px){.wf-row{grid-template-columns:minmax(82px,42%) 1fr minmax(70px,auto);gap:8px}.wf-lb{font-size:11px}.wf-val{font-size:11px}.wf-row.total .wf-val{font-size:12.5px}}
 
+/* ====== APRESENTAÇÃO (capa + plano) ====== */
+.pres{max-width:1010px}
+.pres-hero{background:linear-gradient(135deg,#1B3A2C,#101D18);border:1px solid var(--line2);border-radius:var(--r);padding:clamp(22px,4vw,34px);margin-bottom:18px}
+.pres-hero .msg{font-size:clamp(19px,2.7vw,30px);font-weight:800;line-height:1.32;letter-spacing:-.02em;max-width:860px}
+.pres-hero .msg b{color:var(--ouro2)}
+.pres-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:6px}
+.pres-kpi{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;text-align:center}
+.pres-kpi .v{font-size:clamp(25px,4vw,37px);font-weight:800;color:var(--ouro2);letter-spacing:-.02em}
+.pres-kpi .l{font-size:12px;color:var(--tx2);margin-top:5px;line-height:1.4}
+.pres-sec-t{font-size:12.5px;text-transform:uppercase;letter-spacing:.11em;color:var(--verde);font-weight:800;margin:24px 0 12px}
+.plan{display:grid;grid-template-columns:repeat(auto-fit,minmax(228px,1fr));gap:14px}
+.plan-card{background:var(--surf);border:1px solid var(--line);border-left:3px solid var(--ouro);border-radius:12px;padding:16px 18px}
+.plan-card .pn{font-size:15px;font-weight:800;margin-bottom:7px}
+.plan-card .pp{font-size:12.5px;color:var(--tx2);line-height:1.55}
+.plan-card .pp b{color:var(--tx)}
+.plan-card .pv{font-size:13.5px;font-weight:800;color:var(--ouro2);margin-top:10px}
+
 /* ====== ANÁLISE (frameworks estruturados) ====== */
 .an-sec{margin-bottom:26px}
 .an-lead{font-size:12.5px;color:var(--tx2);line-height:1.55;margin:2px 0 13px;max-width:940px}
@@ -345,7 +362,8 @@ footer{padding:26px clamp(16px,4vw,40px);border-top:1px solid var(--line);color:
 </section>
 
 <nav class="tabs" role="tablist">
-  <button class="tab on" data-v="canal">Diagnóstico</button>
+  <button class="tab on" data-v="apresentacao">Apresentação</button>
+  <button class="tab" data-v="canal">Diagnóstico</button>
   <button class="tab" data-v="analise">Análise</button>
   <button class="tab" data-v="sortimento">Sortimento</button>
   <button class="tab" data-v="lucro">Lucro</button>
@@ -354,7 +372,8 @@ footer{padding:26px clamp(16px,4vw,40px);border-top:1px solid var(--line);color:
 </nav>
 
 <main>
-  <section class="view on" id="view-canal"></section>
+  <section class="view on" id="view-apresentacao"></section>
+  <section class="view" id="view-canal"></section>
   <section class="view" id="view-analise"></section>
   <section class="view" id="view-sortimento"></section>
   <section class="view" id="view-lucro"></section>
@@ -1256,6 +1275,46 @@ function resumoSlack(lojas, canal, findings){
   return t;
 }
 
+/* ---------- Render: Apresentação (capa + plano) ---------- */
+function renderApresentacao(lojas, canal, findings){
+  const v=$('#view-apresentacao');
+  if(!lojas.length){ v.innerHTML=`<div class="empty"><b>Carregue as lojas para montar a apresentação.</b></div>`; return; }
+  const mean=(canal.gmvMes||0)/(canal.n||lojas.length||1);
+  const fDesc=Math.min(...lojas.map(l=>l.descEtiqPct).filter(x=>x!=null));
+  const fItens=Math.max(...lojas.map(l=>l.itensBoleto).filter(x=>x!=null));
+  let opDesc=0,opItens=0,opFlux=0;
+  for(const l of lojas){
+    if(l.descEtiqPct>fDesc&&l.etiquetaMes) opDesc+=(l.descEtiqPct-fDesc)/100*l.etiquetaMes;
+    if(l.itensBoleto<fItens&&l.boletosMes) opItens+=(fItens-l.itensBoleto)*l.boletosMes*(l.precoItemCB||CONFIG.itemCrossFallback);
+    if(l.boletosDia<canal.boletosDiaMedia&&l.ticket&&l.gmvMes>=mean*0.5) opFlux+=(canal.boletosDiaMedia-l.boletosDia)*CONFIG.diasMes*l.ticket;
+  }
+  const totDir=opDesc+opItens+opFlux, anual=totDir*12, pct=canal.gmvMes?totDir/canal.gmvMes*100:0;
+  const big=lojas.filter(l=>l.gmvMes>=mean*0.5);
+  const cestaCh=melhorRede(big,'itensBoleto',true), descCh=melhorRede(big,'descEtiqPct',false);
+  const k=(val,l)=>`<div class="pres-kpi"><div class="v num">${val}</div><div class="l">${l}</div></div>`;
+  const card=(n,p,val)=>`<div class="plan-card"><div class="pn">${n}</div><div class="pp">${p}</div>${val?`<div class="pv">~${fmtBRL(val)}/mês</div>`:''}</div>`;
+  const pg=periodoGlobal();
+  v.innerHTML=`<div class="pres">
+    <div class="pres-hero"><div class="msg">Nosso canal <b>vende bem</b> — o que falta é <b>execução</b>, não mercado. E a própria rede já prova que dá pra recuperar <b>${fmtBRL(anual)}/ano</b> fazendo cada loja operar como a <b>melhor delas</b> já opera.</div></div>
+    <div class="pres-kpis">
+      ${k(fmtBRL(canal.gmvMes*12), 'faturamento por ano · '+fmtN(canal.n)+' lojas')}
+      ${k('+'+fmtBRL(anual), 'oportunidade por ano · provada pela rede')}
+      ${k('+'+fmtPct(pct,0), 'sobre o faturamento de hoje')}
+    </div>
+    <div class="pres-sec-t">Por que dá pra acreditar</div>
+    <p class="an-lead" style="max-width:880px">Não é meta inventada nem comparação de fora: cada número é <b>o que a melhor loja da nossa própria rede já faz hoje</b>. Se uma consegue, as outras conseguem.</p>
+    <div class="pres-sec-t">O plano — 4 alavancas</div>
+    <div class="plan">
+      ${card('1 · Disciplina de desconto', `A <b>${esc(nomeLoja(descCh))}</b> vende com só ${fmtPct(descCh.descEtiqPct)} de desconto. Desconto não enche a loja — a gente mediu. Meta: ninguém muito acima disso.`, opDesc)}
+      ${card('2 · A cesta (2º item)', `A <b>${esc(nomeLoja(cestaCh))}</b> fecha ${fmtN(cestaCh.itensBoleto,2)} itens por cupom. Regra simples no caixa: ninguém sai com 1 item só.`, opItens)}
+      ${card('3 · Capturar as datas', `Kits de Mães, Namorados e Pais valem ~R$ 319 mil/período na rede — e tem loja deixando passar. Toda data, todo mundo na campanha.`, null)}
+      ${card('4 · Campeão em todas as lojas', `Produto que é herói numa loja tem que estar e girar nas outras. A aba <b>Sortimento</b> lista, loja por loja, o que falta levar.`, null)}
+    </div>
+    ${cestaCh&&descCh?`<div class="mirror" style="margin-top:16px"><div class="mt">O espelho da rede</div><b>${esc(nomeLoja(cestaCh))}</b> é a melhor da rede em cesta e a <b>${esc(nomeLoja(descCh))}</b> a melhor em desconto — <b>cada uma é a professora da outra</b>. Dá pra resolver entre nós, sem consultoria.</div>`:''}
+    <p class="note" style="margin-top:16px">Navegue pelas abas acima para detalhar cada ponto ao vivo. Números do período ${pg?pg.label:''} · ordem de grandeza, ceteris paribus.</p>
+  </div>`;
+}
+
 /* ---------- Render: Análise (frameworks estruturados) ---------- */
 function gini(vals){
   const a = vals.filter(v=>v>0).sort((x,y)=>x-y);
@@ -1775,6 +1834,7 @@ function renderAll(){
   const canal = canalAgregado(lojas);
   const findings = gerarEstrategias(lojas, canal);
   renderChips(lojas);
+  renderApresentacao(lojas, canal, findings);
   renderCanal(lojas, canal, findings);
   renderAnalise(lojas, canal, findings);
   renderSortimento(lojas, canal);
