@@ -278,3 +278,12 @@ Início de uma remodelagem maior. O usuário passou a **taxonomia oficial dele**
 3. **Margem por categoria** — stacked custo × margem bruta por categoria.
 
 **Validação:** `node --check` OK; Chromium — 3 seções, Gini 0,76, 14 barras, heatmap 10 linhas; inspeção (8 abas + 3 seletores + rename/XSS) zero erros. **Próximo:** o usuário sinalizou continuar a remodelagem — `catOB` pode futuramente substituir o `categoriaDe` heurístico em todo o app (Lucro, Diagnóstico recorrência, etc.).
+
+## 19. catOB unificado em todo o app (16/06/2026)
+
+O usuário notou a inconsistência: a aba Categorias usava `catOB` (taxonomia oficial) mas o resto (Lucro, donut da aba Lojas, recorrência) ainda usava o `categoriaDe` heurístico — "Perfumaria" significava coisas diferentes em abas diferentes. **Unificado em 3 trocas no `analisarABC`:**
+1. `cat: categoriaDe(...)` → **`cat: catOB(...)`** — propaga a taxonomia oficial para tudo que lê `it.cat` (Lucro: pools/mix/gap/mix×taxa/estrutura de custo; donut da aba Lojas; crossSKU).
+2. **Recorrência** remapeada: `['Maquiagem','Skincare','Capilar']` → `['Maquiagem','Cuidados Faciais','Cabelos']` (categorias de recompra rápida na taxonomia nova). Canal: 6,9% → **7,7%**.
+3. **`precoItemCB`** (preço-base do "2º item" no cálculo de cesta): `byCat['Corpo & Banho']` → `byCat['Cuidados com a Pele']` (≈ R$ 34,35).
+
+`categoriaDe` virou **código morto** (mantido, não chamado). Ordem OK: `catOB`/`_KWOB` (const ~linha 1300) são inicializados antes do `analisarABC` rodar (no `initSeed`, no fim do script). **Verificado:** Categorias e Lucro agora mostram a MESMA categoria top (Perfumaria) — `CONSISTENTE: true`; seed carrega com selo ✓; inspeção das 8 abas + seletores + rename/XSS zero erros. O selo do rodapé é imune (valida fat/custo/lucro/qtd, não categoria). Label "(make·skin·cap)" da recorrência ficou (ainda razoável: Maquiagem+Cuidados Faciais+Cabelos).

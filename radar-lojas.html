@@ -612,7 +612,7 @@ function categoriaDe(nome){
 /* ---------- Análise do ABC por loja ---------- */
 function analisarABC(parsed){
   const its = parsed.items.map(a => ({ sku:a[0], nome:a[1], qtd:a[2], fat:a[3], custo:a[4], lucro:a[5],
-    prc: a[2] ? a[3]/a[2] : 0, marca: marcaDe(a[1]), cat: categoriaDe(a[1]) }));
+    prc: a[2] ? a[3]/a[2] : 0, marca: marcaDe(a[1]), cat: catOB(a[1]) }));  // catOB = taxonomia oficial do usuário (substitui o categoriaDe heurístico, agora morto)
   const fat = its.reduce((s,i)=>s+i.fat,0), lucro = its.reduce((s,i)=>s+i.lucro,0), qtd = its.reduce((s,i)=>s+i.qtd,0);
   const ord = [...its].sort((a,b)=>b.fat-a.fat);
   let ac = 0; const curva = { A:{skus:0,fat:0}, B:{skus:0,fat:0}, C:{skus:0,fat:0} };
@@ -624,8 +624,8 @@ function analisarABC(parsed){
     (byMarca[i.marca] = byMarca[i.marca] || {fat:0,qtd:0});
     byMarca[i.marca].fat+=i.fat; byMarca[i.marca].qtd+=i.qtd;
   }
-  const recorrFat = ['Maquiagem','Skincare','Capilar'].reduce((s,c)=>s+(byCat[c]?byCat[c].fat:0),0);
-  const cb = byCat['Corpo & Banho'];
+  const recorrFat = ['Maquiagem','Cuidados Faciais','Cabelos'].reduce((s,c)=>s+(byCat[c]?byCat[c].fat:0),0); // recorrência = categorias de recompra rápida (era Maquiagem+Skincare+Capilar)
+  const cb = byCat['Cuidados com a Pele']; // preço-base do "2º item" (era Corpo & Banho)
   const kits = {};
   for (const i of its){ const m = i.nome.match(/\b(NAT|MAES|AMOR|PAIS|CRIANC)\/(\d{2})\b/); if (m){ const k=m[1]+'/'+m[2]; (kits[k]=kits[k]||{fat:0,qtd:0,skus:0}); kits[k].fat+=i.fat; kits[k].qtd+=i.qtd; kits[k].skus++; } }
   const brindes = its.filter(i => i.prc < 5 || /\bPRM\b/.test(i.nome));
