@@ -267,6 +267,11 @@ table.rank{border-collapse:collapse;width:100%;min-width:980px;font-size:12.5px}
 .corr th.rh{text-align:right}
 .corr td{text-align:center;padding:0}
 .corr .cc{display:block;padding:6px 9px;border-radius:4px;font-variant-numeric:tabular-nums;font-weight:700;min-width:42px}
+.stack-row{display:grid;grid-template-columns:minmax(110px,170px) 1fr minmax(120px,auto);gap:12px;align-items:center;margin-bottom:7px;max-width:840px}
+.stack-row .sl{font-size:12.5px;color:var(--tx2)}
+.stack-row .sv{font-size:11px;text-align:right;white-space:nowrap;color:var(--tx3);font-variant-numeric:tabular-nums}
+.stack{display:flex;height:19px;border-radius:5px;overflow:hidden;border:1px solid var(--line)}
+.stack>span{display:block;height:100%}
 
 /* ====== DIAGNÓSTICO (narrativa + gargalos) ====== */
 .narr{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin:4px 0 16px;max-width:980px}
@@ -1603,17 +1608,17 @@ function renderSortimento(lojas, canal){
 /* ---------- Render: Lucro (rentabilidade e estrutura) ---------- */
 function aggProfit(lojas){
   const cat={}, marca={}, catLoja={}, lojaTot={};
+  const add=(o,it)=>{ o.fat+=it.fat; o.lucro+=it.lucro; o.custo+=it.custo; };
   for(const l of lojas){
     const s=(state.efetivas&&state.efetivas.get(l.codigo))||state.stores.get(l.codigo);
     if(!s||!s.abc||!s.abc.its) continue;
-    lojaTot[l.codigo]={fat:0,lucro:0};
+    lojaTot[l.codigo]={fat:0,lucro:0,custo:0};
     for(const it of s.abc.its){
       if(/\bPRM\b/i.test(it.nome)) continue;
-      (cat[it.cat]=cat[it.cat]||{fat:0,lucro:0}); cat[it.cat].fat+=it.fat; cat[it.cat].lucro+=it.lucro;
-      (marca[it.marca]=marca[it.marca]||{fat:0,lucro:0}); marca[it.marca].fat+=it.fat; marca[it.marca].lucro+=it.lucro;
-      (catLoja[it.cat]=catLoja[it.cat]||{}); (catLoja[it.cat][l.codigo]=catLoja[it.cat][l.codigo]||{fat:0,lucro:0});
-      catLoja[it.cat][l.codigo].fat+=it.fat; catLoja[it.cat][l.codigo].lucro+=it.lucro;
-      lojaTot[l.codigo].fat+=it.fat; lojaTot[l.codigo].lucro+=it.lucro;
+      add(cat[it.cat]=cat[it.cat]||{fat:0,lucro:0,custo:0}, it);
+      add(marca[it.marca]=marca[it.marca]||{fat:0,lucro:0,custo:0}, it);
+      (catLoja[it.cat]=catLoja[it.cat]||{}); add(catLoja[it.cat][l.codigo]=catLoja[it.cat][l.codigo]||{fat:0,lucro:0,custo:0}, it);
+      add(lojaTot[l.codigo], it);
     }
   }
   return {cat, marca, catLoja, lojaTot};
@@ -1729,7 +1734,38 @@ function renderLucro(lojas, canal){
     <p class="note">Soma das categorias onde a loja fica abaixo do peso do canal × faturamento da loja; "falta" = as 3 maiores lacunas de cada loja. PRM fora.</p>
   </div>`;
 
-  v.innerHTML = b1 + b2 + b3 + b4 + b5 + b6;
+  /* 7 · Decomposição de margem: mix × taxa */
+  const Mch=totLucro/totFat*100;
+  const catMch={}, catWch={};
+  for(const k in A.cat){ catMch[k]=A.cat[k].fat?A.cat[k].lucro/A.cat[k].fat*100:0; catWch[k]=A.cat[k].fat/totFat; }
+  const decomp=byGmv.map(l=>{ const lt=A.lojaTot[l.codigo]; const sf=lt.fat||1; const Ms=lt.lucro/sf*100; let mix=0,rate=0; for(const k in A.cat){ const cl=A.catLoja[k]&&A.catLoja[k][l.codigo]; const wsc=cl?cl.fat/sf:0; const Msc=(cl&&cl.fat)?cl.lucro/cl.fat*100:catMch[k]; mix+=(wsc-catWch[k])*catMch[k]; rate+=wsc*(Msc-catMch[k]); } return {nome:nomeLoja(l), Ms, d:Ms-Mch, mix, rate, merged:l.mergedCods&&l.mergedCods.length>1}; });
+  const ppCol=v=>v>=0?'color:var(--verde)':'color:var(--verm)';
+  const ppFmt=v=>(v>=0?'+':'−')+fmtN(Math.abs(v),1);
+  const rateBad=decomp.filter(x=>!x.merged).sort((a,b)=>a.rate-b.rate)[0];
+  const b7=`<div class="an-sec"><div class="sec-t">7 · Decomposição de margem: mix × taxa <span class="vtag medio">por que a margem difere</span></div>
+    <p class="an-lead">Por que a margem de cada loja difere do canal (${fmtPct(Mch,1)})? Em dois: <b>mix</b> = a loja vende um <b>blend diferente</b> de categorias (umas com mais, outras com menos margem); <b>taxa</b> = dentro de cada categoria, ela <b>precifica/compra</b> com margem diferente. A taxa é o que dá pra corrigir direto.</p>
+    <table class="sku-tbl"><thead><tr><th>Loja</th><th class="num">Margem</th><th class="num">vs canal</th><th class="num">efeito mix</th><th class="num">efeito taxa</th></tr></thead><tbody>
+    ${decomp.map(x=>`<tr><td class="pnome">${esc(x.nome)}${x.merged?'*':''}</td><td class="num">${fmtPct(x.Ms,1)}</td><td class="num" style="${ppCol(x.d)}">${ppFmt(x.d)} pp</td><td class="num" style="${ppCol(x.mix)}">${ppFmt(x.mix)}</td><td class="num" style="${ppCol(x.rate)}">${ppFmt(x.rate)}</td></tr>`).join('')}
+    </tbody></table>
+    ${rateBad&&rateBad.rate<-0.5?`<div class="mirror"><div class="mt">Onde dá pra agir</div><b>${esc(rateBad.nome)}</b> tem o pior <b>efeito taxa</b> (${ppFmt(rateBad.rate)} pp) — a margem baixa dela <b>não é o que vende, é como precifica/compra</b> dentro das categorias. Execução (desconto/custo), corrigível — não sortimento.</div>`:''}
+    <p class="note">mix + taxa = diferença de margem vs canal (decomposição padrão, em pontos percentuais). ${comPdf.some(l=>l.mergedCods&&l.mergedCods.length>1)?'<b>*</b> Coruripe: margem do ABC somado — asterisco.':''} PRM fora.</p>
+  </div>`;
+
+  /* 8 · Estrutura de custo (margem bruta por categoria) */
+  const totCusto=Object.values(A.lojaTot).reduce((s,x)=>s+(x.custo||0),0);
+  const semImposto=Math.abs(totFat-totCusto-totLucro) < totFat*0.003; // neste export o ABC traz lucro = fat - custo (sem linha de imposto)
+  const catC=Object.entries(A.cat).map(([k,x])=>({k, fat:x.fat, custo:x.custo, lucro:x.lucro})).sort((a,b)=>b.fat-a.fat).slice(0,9);
+  const stackBar=o=>{ const f=o.fat||1; const c=o.custo/f*100, lu=o.lucro/f*100, im=Math.max(0,100-c-lu); return `<div class="stack"><span style="width:${c.toFixed(1)}%;background:#4a5c52" title="custo ${fmtPct(c,0)}"></span>${im>0.3?`<span style="width:${im.toFixed(1)}%;background:#E16358" title="imposto/outros ${fmtPct(im,0)}"></span>`:''}<span style="width:${lu.toFixed(1)}%;background:#E8CD8F" title="margem ${fmtPct(lu,0)}"></span></div>`; };
+  const b8=`<div class="an-sec"><div class="sec-t">8 · Estrutura de custo <span class="vtag medio">custo × margem por categoria</span></div>
+    <p class="an-lead">De cada R$ 100 vendidos no canal: <b style="color:#9DB7A8">${fmtN(totCusto/totFat*100,0)} de custo</b> · <b style="color:var(--ouro2)">${fmtN(totLucro/totFat*100,0)} de margem bruta</b>. Onde o custo pesa mais — por categoria. ${semImposto?'<b>Descoberta:</b> este export <b>não separa imposto</b> — o "lucro" do ABC é <b>margem bruta</b> (faturamento − custo), não líquida. Para margem líquida precisaria de um export com Estadual/Federal preenchidos.':''}</p>
+    <div>
+      <div class="stack-row"><div class="sl"><b>Canal</b></div>${stackBar({fat:totFat,custo:totCusto,lucro:totLucro})}<div class="sv">${fmtBRL(totFat)}</div></div>
+      ${catC.map(c=>`<div class="stack-row"><div class="sl">${esc(c.k)}</div>${stackBar(c)}<div class="sv">custo ${fmtPct(c.custo/c.fat*100,0)} · marg ${fmtPct(c.lucro/c.fat*100,0)}</div></div>`).join('')}
+    </div>
+    <p class="note"><span style="color:#9DB7A8">■</span> custo · <span style="color:var(--ouro2)">■</span> margem bruta (% do faturamento da categoria)${semImposto?'':' · <span style="color:var(--verm)">■</span> imposto/outros'}. Categorias de margem mais baixa são as mais custo-intensivas. PRM fora.</p>
+  </div>`;
+
+  v.innerHTML = b1 + b2 + b3 + b4 + b5 + b6 + b7 + b8;
   const sb=$('#fBridge'); if(sb) sb.onchange=e=>{ bridgeSel=e.target.value; renderLucro(lojas, canal); };
 }
 
