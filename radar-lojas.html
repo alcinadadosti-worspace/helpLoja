@@ -300,6 +300,19 @@ table.rank{border-collapse:collapse;width:100%;min-width:980px;font-size:12.5px}
 .tag.ok{background:#34C77B22;color:var(--verde)}
 .tag.warn{background:#E8B84B22;color:var(--ambar)}
 .tag.bad{background:#E1635822;color:var(--verm)}
+/* ---- Tendência (ponte YoY, funil, alavancas de fluxo) ---- */
+.ebar{display:grid;grid-template-columns:130px 1fr 122px;align-items:center;gap:10px;margin:6px 0}
+.ebar .el{font-size:12.5px;color:var(--tx2)}
+.ebar .et{position:relative;height:18px;background:#ffffff07;border-radius:4px}
+.ebar .ez{position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:#ffffff2e}
+.ebar .ef{position:absolute;top:3px;bottom:3px;border-radius:3px;min-width:1px}
+.ebar .ev{font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+.funnel{display:flex;flex-direction:column;gap:8px;max-width:600px;margin:6px 0 4px}
+.funnel .fstage{display:grid;grid-template-columns:180px 1fr 68px;align-items:center;gap:12px}
+.funnel .ftk{position:relative;height:26px;background:#ffffff07;border-radius:5px;overflow:hidden}
+.funnel .fbar{position:absolute;left:0;top:0;bottom:0;border-radius:5px}
+.funnel .fl{font-size:12.5px;color:var(--tx2)}
+.funnel .fv{font-size:13.5px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums}
 .gtbl{display:grid;gap:6px;max-width:980px}
 .grow{display:grid;grid-template-columns:minmax(150px,1.1fr) 2fr minmax(104px,auto);gap:12px;align-items:center;background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:9px 14px}
 .grow .gl{font-weight:700;font-size:13px}
@@ -365,6 +378,7 @@ footer{padding:26px clamp(16px,4vw,40px);border-top:1px solid var(--line);color:
 <nav class="tabs" role="tablist">
   <button class="tab on" data-v="apresentacao">Apresentação</button>
   <button class="tab" data-v="canal">Diagnóstico</button>
+  <button class="tab" data-v="tendencia">Tendência</button>
   <button class="tab" data-v="analise">Análise</button>
   <button class="tab" data-v="sortimento">Sortimento</button>
   <button class="tab" data-v="categorias">Categorias</button>
@@ -377,6 +391,7 @@ footer{padding:26px clamp(16px,4vw,40px);border-top:1px solid var(--line);color:
 <main>
   <section class="view on" id="view-apresentacao"></section>
   <section class="view" id="view-canal"></section>
+  <section class="view" id="view-tendencia"></section>
   <section class="view" id="view-analise"></section>
   <section class="view" id="view-sortimento"></section>
   <section class="view" id="view-categorias"></section>
@@ -1248,6 +1263,80 @@ function renderCanal(lojas, canal, findings){
       </div>`; }).join('')}
     </div>
     <p class="note">"Gargalo nº 1" = o achado de maior materialidade de cada loja — evidência e benchmark na aba <b>Benchmark e achados</b>. A materialidade em R$ é ordem de grandeza vs a referência da rede (ceteris paribus), não meta.</p>`;
+}
+
+/* ---------- Render: Tendência (ponte YoY · funil de fidelização · alavancas de fluxo) ---------- */
+function renderTendencia(lojas, canal){
+  const v=$('#view-tendencia');
+  const perf=state.perf, cp=perf&&perf.cp, pm=perf&&perf.meta;
+  if(!cp){ v.innerHTML=`<div class="empty"><b>A aba Tendência precisa do "Resumo de Performance".</b><br><span class="meta">Arraste a planilha de Indicadores de Loja — ela traz meta PEF e comparação com o mesmo período do ano anterior.</span></div>`; return; }
+  const sgn  = f => f==null?'—':(f>0?'+':'')+fmtPct(f*100,1);          // f fração → %
+  const sgnPP= f => f==null?'—':(f>0?'+':'')+fmtN(f*100,1)+'pp';       // f fração → pontos percentuais
+  const sgnR = x => (x>=0?'+':'')+fmtBRL(x);
+  const col  = good => good?'var(--verde)':'var(--verm)';
+  // Receita = boletos × itens/boleto × preço médio; decomposição sequencial exata da variação YoY (R$ do período)
+  const bridge=(bol,it,pr,bY,iY,pY)=>{ if([bol,it,pr,bY,iY,pY].some(x=>x==null) || [bY,iY,pY].some(x=>x<=-1)) return null; // x<=-1 evitaria divisão por zero (YoY de -100%)
+    const ba=bol/(1+bY), ia=it/(1+iY), pa=pr/(1+pY);
+    return { atual:bol*it*pr, ant:ba*ia*pa, dR:bol*it*pr-ba*ia*pa,
+      vol:(bol-ba)*ia*pa, cesta:bol*(it-ia)*pa, preco:bol*it*(pr-pa) }; }
+
+  /* ---- 1 · Ponte da queda (tráfego × cesta × preço) ---- */
+  const cb = bridge(cp.boletos.real, cp.itensBoleto.real, cp.precoMedio.real, cp.boletos.vsAnt/100, cp.itensBoleto.vsAnt/100, cp.precoMedio.vsAnt/100);
+  const recYoY = cp.receita.vsAnt/100;
+  const mx = cb ? (Math.max(Math.abs(cb.vol),Math.abs(cb.cesta),Math.abs(cb.preco))||1) : 1;
+  const ebar=(lb,val)=>{ const w=Math.min(50,Math.abs(val)/mx*50).toFixed(1);
+    const side=val>=0?`left:50%;width:${w}%;background:var(--verde)`:`right:50%;width:${w}%;background:var(--verm)`;
+    return `<div class="ebar"><div class="el">${lb}</div><div class="et"><div class="ez"></div><div class="ef" style="${side}"></div></div><div class="ev" style="color:${col(val>=0)}">${sgnR(val)}</div></div>`; };
+  const comBase = lojas.filter(l=>l.perf && l.perf.receita.vsAnt!=null);
+  const semBase = lojas.filter(l=>l.perf && l.perf.receita.vsAnt==null);
+  const lojaBr = comBase.map(l=>({l, b:bridge(l.perf.boletos.v,l.perf.itensBoleto.v,l.perf.precoMedio.v,l.perf.boletos.vsAnt,l.perf.itensBoleto.vsAnt,l.perf.precoMedio.vsAnt)})).filter(x=>x.b).sort((a,b)=>a.b.dR-b.b.dR);
+  const cR = x=>`<td class="num" style="color:${col(x>=0)}">${sgnR(x)}</td>`;
+  const b1=`<div class="an-sec"><div class="sec-t">1 · Ponte da queda — tráfego × cesta × preço <span class="vtag ruim">vs ano passado</span></div>
+    <p class="an-lead">A receita é <b>boletos × itens por boleto × preço médio</b>. Decompondo a queda do canal vs o ano passado, dá pra ver <b>de onde ela vem</b>: ${cb?`o canal perdeu <b style="color:var(--verm)">${sgn(cp.boletos.vsAnt/100)}</b> de tráfego, manteve a cesta (${sgn(cp.itensBoleto.vsAnt/100)}) e <b>segurou o faturamento subindo preço</b> (${sgn(cp.precoMedio.vsAnt/100)}). Não é mix nem desconto — <b>é gente entrando menos na loja</b>.`:''}</p>
+    ${cb?`<div class="mini-t">Canal · variação de receita no período (R$)</div>
+    ${ebar('Tráfego (boletos)',cb.vol)}${ebar('Cesta (itens/bol)',cb.cesta)}${ebar('Preço médio',cb.preco)}
+    <div class="ebar" style="border-top:1px solid var(--line);margin-top:8px;padding-top:9px"><div class="el"><b>= Receita</b></div><div class="et" style="background:none"></div><div class="ev" style="color:${col(cb.dR>=0)};font-size:14px">${sgnR(cb.dR)} <span class="meta" style="font-weight:600">(${sgn(recYoY)})</span></div></div>`:''}
+    <div class="mini-t" style="margin-top:16px">Por loja · ${lojaBr.length} com base comparável (da que mais caiu para a que menos caiu)</div>
+    <table class="sku-tbl"><thead><tr><th>Loja</th><th class="num">Tráfego</th><th class="num">Cesta</th><th class="num">Preço</th><th class="num">= Δ Receita</th><th class="num">YoY</th></tr></thead><tbody>
+    ${lojaBr.map(({l,b})=>`<tr><td><div class="pnome">${esc(nomeLoja(l))}</div></td>${cR(b.vol)}${cR(b.cesta)}${cR(b.preco)}<td class="num"><b>${sgnR(b.dR)}</b></td><td class="num" style="color:${col(l.perf.receita.vsAnt>=0)}">${sgn(l.perf.receita.vsAnt)}</td></tr>`).join('')}
+    </tbody></table>
+    ${semBase.length?`<p class="note">${semBase.map(l=>esc(nomeLoja(l))).join(' e ')} sem base do ano anterior no sistema — fora da ponte.</p>`:''}
+    <p class="note">Decomposição sequencial exata (tráfego + cesta + preço = Δ receita). Valores no período (~${fmtN(canal.meses||5.6,1)} meses); para o ano, ×~${fmtN(12/(canal.meses||5.6),1)}.</p>
+  </div>`;
+
+  /* ---- 2 · Funil de fidelização ---- */
+  const fstages=[['idCliente','Identifica o cliente','var(--verde)'],['penFid','Cadastra na fidelidade','var(--verde2)'],['resgateFid','Resgata pontos','var(--ouro)']];
+  const frow=([k,lb,c])=>{ const val=cp[k]?cp[k].real:null; if(val==null) return '';
+    const w=Math.min(100,val).toFixed(1);
+    return `<div class="fstage"><div class="fl">${lb}</div><div class="ftk"><div class="fbar" style="width:${w}%;background:${c}"></div></div><div class="fv">${fmtPct(val,1)}</div></div>`; };
+  const resgYoY = cp.resgateFid.vsAnt;  // pp (CP), número 0-100
+  const idColR = lojas.filter(l=>l.perf).map(l=>l.perf.resgateFid.v);
+  const funilRows = lojas.filter(l=>l.perf).map(l=>{ const p=l.perf;
+    return `<tr><td><div class="pnome">${esc(nomeLoja(l))}</div></td>
+      <td class="num">${fmtPct(p.idCliente.v,0)}</td><td class="num">${fmtPct(p.penFid.v,0)}</td>
+      <td class="num">${heatCell(fmtPct(p.resgateFid.v,0), p.resgateFid.v, idColR, true)}</td></tr>`; }).join('');
+  const b2=`<div class="an-sec"><div class="sec-t">2 · Funil de fidelização <span class="vtag medio">identifica → cadastra → resgata</span></div>
+    <p class="an-lead">O cliente fidelizado é o que <b>volta</b> — e voltar é exatamente o que falta (a queda é de fluxo). O funil mostra onde vaza: o canal <b>identifica ${fmtPct(cp.idCliente.real,0)}</b> dos boletos e <b>cadastra ${fmtPct(cp.penFid.real,0)}</b>, mas <b style="color:var(--ouro2)">só ${fmtPct(cp.resgateFid.real,0)} resgatam</b> pontos. O vazamento está no <b>resgate</b> — meio programa parado é meia visita de volta na mesa.</p>
+    <div class="funnel">${fstages.map(frow).join('')}</div>
+    <p class="note">Resgate vs ano passado: <b style="color:${col(resgYoY>=0)}">${(resgYoY>0?'+':'')+fmtN(resgYoY,1)}pp</b> (melhorando). "Identifica" é base RBV e passa de 100%.</p>
+    <div class="mini-t" style="margin-top:14px">Por loja · resgate é a alavanca (verde = melhor)</div>
+    <table class="sku-tbl"><thead><tr><th>Loja</th><th class="num">Identifica</th><th class="num">Cadastra</th><th class="num">Resgata</th></tr></thead><tbody>${funilRows}</tbody></table>
+    <p class="note">Quem identifica e cadastra bem mas resgata pouco tem fila de clientes a um empurrão de voltar à loja — campanha de resgate é tática de fluxo de baixo custo.</p>
+  </div>`;
+
+  /* ---- 3 · Alavancas de fluxo ---- */
+  const fluxRows = lojas.filter(l=>l.perf).sort((a,b)=>(b.perf.servicos.v||0)-(a.perf.servicos.v||0)).map(l=>{ const p=l.perf;
+    return `<tr><td><div class="pnome">${esc(nomeLoja(l))}</div></td>
+      <td class="num">${fmtPct(p.convFluxo.v,1)} <span class="meta">${sgnPP(p.convFluxo.vsAnt)}</span></td>
+      <td class="num">${fmtN(p.servicos.v,0)} <span class="meta">${sgn(p.servicos.vsAnt)}</span></td>
+      <td class="num" style="color:${col((l.perf.boletos.vsAnt||0)>=0)}">${sgn(l.perf.boletos.vsAnt)}</td></tr>`; }).join('');
+  const b3=`<div class="an-sec"><div class="sec-t">3 · Alavancas de fluxo <span class="vtag ruim">o botão da recuperação</span></div>
+    <p class="an-lead">Se a queda é de tráfego, os dois indicadores que medem tráfego direto importam mais que tudo: <b>Conversão de Ação de Fluxo</b> (quanto as ações de atrair gente convertem) e <b>Serviços em Loja</b> (motivo de ida à loja). No canal a conversão de fluxo caiu <b style="color:var(--verm)">${(cp.convFluxo.vsAnt>0?'+':'')+fmtN(cp.convFluxo.vsAnt,1)}pp</b> vs o ano passado — na mesma direção dos boletos.</p>
+    <table class="sku-tbl"><thead><tr><th>Loja</th><th class="num">Conversão ação de fluxo</th><th class="num">Serviços em loja</th><th class="num">Boletos YoY</th></tr></thead><tbody>${fluxRows}</tbody></table>
+    <p class="note">Conversão e serviços com a variação ao lado; "Boletos YoY" na última coluna pra ver a associação loja a loja. Serviços é contagem absoluta — pondere pelo porte da loja. Correlação sugestiva (n=6, sem série mensal) — sinaliza onde apertar, não prova causa.</p>
+  </div>`;
+
+  v.innerHTML = b1 + b2 + b3;
 }
 
 /* ---------- Render: Lojas ---------- */
@@ -2271,6 +2360,7 @@ function renderAll(){
   renderChips(lojas);
   renderApresentacao(lojas, canal, findings);
   renderCanal(lojas, canal, findings);
+  renderTendencia(lojas, canal);
   renderAnalise(lojas, canal, findings);
   renderSortimento(lojas, canal);
   renderCategorias(lojas, canal);

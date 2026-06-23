@@ -332,3 +332,18 @@ Nova fonte de dados: **`20260623_Resumo_de_Performance_Indicadores_Loja_*.xlsx`*
 **Privacidade — MUDANÇA de decisão:** o usuário **autorizou expor os 45 nomes reais** de consultoras no seed ("pode expor, será uma reunião privada"), **contrariando** a regra das §10/§14 (PII fora do deploy). **Ressalva registrada:** a URL do Render é pública — os nomes ficam acessíveis lá também, não só na reunião. Toggle de anonimização no deploy não foi feito (oferecido).
 
 **Validação (critério permanente mantido):** `node --check` OK; `parsePerf` == `PERF_SEED` célula a célula no XLSX real; jsdom (seed) — 9 abas trocam, Equipe 4 seções/9 tabelas, 6 scorecards PEF, matriz PEF no Benchmark, 3 seletores, rename/XSS escapado, **zero erros de console**. Pipeline ABC/CSV (selo ✓, mix, Gini, Lucro) intacto (views inalteradas no boot).
+
+**Commit:** `fcb122c` na main (push feito). **Bug-fix posterior** (mesma sessão, antes do §23): a) mesma-loja YoY estava como média ponderada das taxas (−20,4%) → trocado por agregado real Σatual/Σant−1 (**−20,7%**); b) `gapAno` da Apresentação misturava base (rate de performance × GMV do CSV) → recalculado sobre a receita de performance anualizada pelos dias do período (**~R$ 1,74M/ano**), e "mesmo tamanho" → "mesma ordem de grandeza"; c) hero da Apresentação guardado contra YoY ausente (`temYoY`).
+
+## 23. Aba Tendência — ponte YoY + funil de fidelização + alavancas de fluxo (23/06/2026)
+
+Pedido do usuário ("tendo esses dados ricos, quais análises podem ser feitas" → "pode fazer"). Nova aba **Tendência** (`view-tendencia`, entre Diagnóstico e Análise) → **10 abas**. `renderTendencia(lojas, canal)`, 100% de `state.perf`. CSS novo: blocos `.ebar` (barra divergente centrada no zero) e `.funnel`.
+
+**Insight central (verificado, soma exata):** Receita = boletos × itens/boleto × preço médio. A queda do canal **−17,6% YoY decompõe em: tráfego −24,8%, cesta −0,4% (≈flat), preço +10,0%** → em R$ no período: **tráfego −R$1.147k, cesta −R$15k, preço +R$345k = −R$817k**. **É 100% fluxo** (gente entrando menos), segurado por preço. Reframe definitivo: recuperação = recuperar tráfego.
+
+3 blocos:
+1. **Ponte da queda** (`bridge()` — decomposição sequencial exata vol/cesta/preço; soma = ΔR conferida nas 6). Barras divergentes do canal + tabela por loja (só as 4 com base; 24303/24617 sem ano anterior fora). Per-loja a receita é reconstruída por boletos×itens×preço (≈0,5% de ruído de arredondamento vs receita.v; a coluna YoY% usa o `receita.vsAnt` autoritativo).
+2. **Funil de fidelização** — Identifica (`idCliente` 116%, RBV >100) → Cadastra (`penFid` 95,6%) → **Resgata (`resgateFid` 54,3%)**. Vaza no resgate (alavanca de retorno = fluxo barato). Resgate YoY +13,1pp. Heatmap de resgate por loja (24303 pior, 39%, apesar de bater meta — vende mas não traz de volta).
+3. **Alavancas de fluxo** — Conversão de Ação de Fluxo (canal −5,6pp YoY, na direção dos boletos) + Serviços em Loja (contagem absoluta + YoY), com **Boletos YoY** ao lado pra associação loja-a-loja. Caveat n=6, sem série mensal: sinaliza, não prova.
+
+**Validação:** `node --check` OK; jsdom — 10 abas, bridge soma exata (canal e por loja), funil 116/95,6/54,3, zero erros de console. **Pendente de commit** (ver final desta seção quando feito).
