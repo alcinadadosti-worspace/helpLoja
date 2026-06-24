@@ -376,16 +376,14 @@ footer{padding:26px clamp(16px,4vw,40px);border-top:1px solid var(--line);color:
 </section>
 
 <nav class="tabs" role="tablist">
-  <button class="tab on" data-v="apresentacao">Apresentação</button>
-  <button class="tab" data-v="canal">Diagnóstico</button>
+  <button class="tab on" data-v="canal">Diagnóstico</button>
   <button class="tab" data-v="tendencia">Tendência</button>
   <button class="tab" data-v="lojas">Lojas</button>
   <button class="tab" data-v="estrategias">Benchmark e achados</button>
 </nav>
 
 <main>
-  <section class="view on" id="view-apresentacao"></section>
-  <section class="view" id="view-canal"></section>
+  <section class="view on" id="view-canal"></section>
   <section class="view" id="view-tendencia"></section>
   <section class="view" id="view-lojas"></section>
   <section class="view" id="view-estrategias"></section>
@@ -1237,12 +1235,7 @@ function renderCanal(lojas, canal, findings){
       ${kpi('Margem bruta', fmtPct(canal.margem), 'ABC (lucro/faturamento)')}
     </div>
     <div class="narr">
-      <h3>Leitura do canal</h3>
-      ${tendPara}
-      <p>O canal faz <b>${fmtBRL(canal.gmvMes)}/mês</b> (~<b>${fmtBRL(canal.gmvMes*12)}/ano</b>) em ${fmtN(canal.n)} lojas.${top2.length===2?` <b>${esc(nomeLoja(top2[0]))}</b> e <b>${esc(nomeLoja(top2[1]))}</b> concentram <b>${fmtPct(top2pct,0)}</b> do GMV.`:''}${micro.length?` ${micro.map(l=>`<b>${esc(nomeLoja(l))}</b> (${fmtBRL(l.gmvMes)}/mês)`).join(', ')} ${micro.length>1?'são formatos pequenos':'é um formato pequeno'} à parte — compará-${micro.length>1?'las':'la'} de igual para igual com as grandes distorce.`:''}</p>
-      ${eTick&&margLo!=null?`<p><span class="tag ok">forte e uniforme</span>O canal <b>monetiza bem quem entra</b>: ticket ${fmtBRL(eTick.lo.ticket,0)}–${fmtBRL(eTick.hi.ticket,0)}, margem ${fmtPct(margLo,0)}–${fmtPct(margHi,0)}${merged.length?'*':''}, trocas saudáveis (≤${fmtPct(eTroca?eTroca.hi.trocasPct:1.5)} em todas) e identificação ${fmtPct(eFid.lo.fidPct,0)}–${fmtPct(eFid.hi.fidPct,0)}. Os pontos fracos não estão em vender — estão em puxar gente e em disciplina.</p>`:''}
-      ${eDesc&&eRec&&eFlux?`<p><span class="tag warn">onde a execução varia</span>Mesma rede, produtos quase idênticos, e os números abrem: <b>desconto</b> de ${fmtPct(eDesc.melhor.descEtiqPct)} (${esc(nomeLoja(eDesc.melhor))}) a ${fmtPct(eDesc.pior.descEtiqPct)} (${esc(nomeLoja(eDesc.pior))}); <b>recorrência</b> de ${fmtPct(eRec.pior.recorrPct)} a ${fmtPct(eRec.melhor.recorrPct)} (${esc(nomeLoja(eRec.melhor))}); <b>fluxo</b> de ${fmtN(eFlux.pior.boletosDia,1)} a ${fmtN(eFlux.melhor.boletosDia,1)} cupons/dia (${esc(nomeLoja(eFlux.melhor))}). A diferença mora na execução, não no mercado.</p>`:''}
-      ${merged.length?`<p class="aster">* ${merged.map(l=>esc(nomeLoja(l))).join(', ')}: o ABC soma os códigos ${merged.map(l=>[...l.mergedCods].sort().join('+')).join(', ')} — margem e cauda dessas lojas têm asterisco; ticket, desconto e fidelidade (do CSV) são limpos.</p>`:''}
+      ${tendPara || `<p class="an-lead">O canal faz <b>${fmtBRL(canal.gmvMes)}/mês</b> em ${fmtN(canal.n)} lojas. Carregue o Resumo de Performance para a leitura de tendência (meta e ano anterior).</p>`}
     </div>
     <div class="sec-t">Gargalo nº 1 de cada loja</div>
     <div class="gtbl">
@@ -1411,12 +1404,12 @@ function renderLojas(lojas){
         ${kg('Trocas', `<span class="${cls(SPEC.trocas,l.trocasPct)}">${fmtPct(l.trocasPct)}</span>`, regua(l.trocasPct, SPEC.trocas))}
         ${kg('Recorrência (make·skin·cap)', `<span class="${cls(SPEC.recorr,l.recorrPct)}">${fmtPct(l.recorrPct)}</span>`, regua(l.recorrPct, SPEC.recorr))}
         ${kg('Cartão presente', l.recarga===0?'<span class="c-bad">R$ 0</span>':fmtBRL(l.recarga))}
-      </div>${perfPanel(l.perf)}</div>
-      <button class="expand" data-expand="${l.codigo}">ver mix, curva ABC e top SKUs ▾</button>
-      <div class="detail" id="det-${l.codigo}">${det}</div>
+      </div></div>
+      <button class="expand" data-expand="${l.codigo}">ver desempenho PEF, mix e curva ABC ▾</button>
+      <div class="detail" id="det-${l.codigo}">${perfPanel(l.perf)}${det}</div>
     </article>`;
   }).join('') + `</div>`;
-  $$('[data-expand]').forEach(b => b.onclick = () => { const d = $('#det-'+b.dataset.expand); d.classList.toggle('on'); b.textContent = d.classList.contains('on') ? 'recolher ▴' : 'ver mix, curva ABC e top SKUs ▾'; });
+  $$('[data-expand]').forEach(b => b.onclick = () => { const d = $('#det-'+b.dataset.expand); d.classList.toggle('on'); b.textContent = d.classList.contains('on') ? 'recolher ▴' : 'ver desempenho PEF, mix e curva ABC ▾'; });
   $$('[data-rename]').forEach(inp => inp.onchange = () => { state.nomes[inp.dataset.rename] = inp.value.trim(); setTimeout(renderAll, 0); }); // adia p/ fora do evento de blur (senão innerHTML remove o input em foco → erro de DOM)
 }
 
@@ -1516,8 +1509,6 @@ function renderEstrategias(lojas, canal, findings){
           <span class="badge loja">${esc(nomeLoja(s.loja))}</span><h3>${esc(s.titulo)}</h3></div>
           ${s.impacto?`<div class="impact num">~${fmtBRL(s.impacto)}<small> /mês${s.somavel?'':' (indireto)'}</small></div>`:''}
         </div>
-        <p class="diag">${s.diag}</p>
-        ${benchL}
         ${svizHTML(viz2)}
         ${ress?`<p class="ressalva">⚠ ${esc(ress)}</p>`:''}
       </div>`; }).join('')}</div>`;
@@ -1561,70 +1552,6 @@ const _normOB=s=>String(s).toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
 const _KWOB=(()=>{ const L=[]; CAT_OB_SPEC.forEach((c,p)=>c[1].forEach(k=>{ const kk=_normOB(k).replace(/-/g,' '); L.push({kw:kk,cat:c[0],prio:p,len:kk.replace(/ /g,'').length}); })); L.sort((a,b)=>b.len-a.len||a.prio-b.prio); return L; })();
 function catOB(nome){ const flat=_normOB(nome).replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim(); const toks=new Set(flat.split(' ')); for(const {kw,cat} of _KWOB){ if(kw.includes(' ')){ if((' '+flat+' ').includes(' '+kw+' ')) return cat; } else if(toks.has(kw)) return cat; } return 'Outros'; }
 
-/* ---------- Render: Apresentação (capa + plano) ---------- */
-function renderApresentacao(lojas, canal, findings){
-  const v=$('#view-apresentacao');
-  if(!lojas.length){ v.innerHTML=`<div class="empty"><b>Carregue as lojas para montar a apresentação.</b></div>`; return; }
-  const mean=(canal.gmvMes||0)/(canal.n||lojas.length||1);
-  const fDesc=Math.min(...lojas.map(l=>l.descEtiqPct).filter(x=>x!=null));
-  const fItens=Math.max(...lojas.map(l=>l.itensBoleto).filter(x=>x!=null));
-  let opDesc=0,opItens=0,opFlux=0;
-  for(const l of lojas){
-    if(l.descEtiqPct>fDesc&&l.etiquetaMes) opDesc+=(l.descEtiqPct-fDesc)/100*l.etiquetaMes;
-    if(l.itensBoleto<fItens&&l.boletosMes) opItens+=(fItens-l.itensBoleto)*l.boletosMes*(l.precoItemCB||CONFIG.itemCrossFallback);
-    if(l.boletosDia<canal.boletosDiaMedia&&l.ticket&&l.gmvMes>=mean*0.5) opFlux+=(canal.boletosDiaMedia-l.boletosDia)*CONFIG.diasMes*l.ticket;
-  }
-  const totDir=opDesc+opItens+opFlux, anual=totDir*12, pct=canal.gmvMes?totDir/canal.gmvMes*100:0;
-  const big=lojas.filter(l=>l.gmvMes>=mean*0.5);
-  const cestaCh=melhorRede(big,'itensBoleto',true), descCh=melhorRede(big,'descEtiqPct',false);
-  const k=(val,l)=>`<div class="pres-kpi"><div class="v num">${val}</div><div class="l">${l}</div></div>`;
-  const card=(n,p,val)=>`<div class="plan-card"><div class="pn">${n}</div><div class="pp">${p}</div>${val?`<div class="pv">~${fmtBRL(val)}/mês</div>`:''}</div>`;
-  const pg=periodoGlobal();
-  // Realidade vs ano passado (Resumo de Performance) — abre a apresentação com a urgência real
-  const cp = state.perf && state.perf.cp;
-  const pm = state.perf && state.perf.meta;
-  let recYoY=null, bolYoY=null, tickYoY=null, recMeta=null, gapAno=null;
-  if (cp){
-    recYoY = cp.receita.vsAnt!=null ? cp.receita.vsAnt/100 : null;
-    bolYoY = cp.boletos.vsAnt!=null ? cp.boletos.vsAnt/100 : null;
-    tickYoY= cp.ticket.vsAnt!=null  ? cp.ticket.vsAnt/100  : null;
-    recMeta= cp.receita.vsMeta;
-    // gap p/ voltar ao ano passado, em R$/ano — calculado sobre a RECEITA DA PRÓPRIA fonte de performance
-    // (não sobre o GMV do CSV, que tem outra base), anualizada pelos dias do período do arquivo
-    if (recYoY!=null && recYoY<-0 && recYoY>-1){
-      let dPerf=null;
-      if (pm && pm.periodoAtual){ const mm=String(pm.periodoAtual).split(/\s*[-–]\s*/); if(mm.length===2){ try{ dPerf=Math.round((dtBR(mm[1].trim())-dtBR(mm[0].trim()))/864e5)+1; }catch(_){} } }
-      const perfAno = (dPerf && dPerf>30) ? cp.receita.real*365/dPerf : cp.receita.real*(12/(canal.meses||5.6));
-      gapAno = perfAno * (-recYoY/(1+recYoY));
-    }
-  }
-  const temYoY = cp && recYoY!=null && bolYoY!=null && tickYoY!=null;
-  const sgnP = f => f==null ? '—' : (f>0?'+':'') + fmtPct(f*100, 1);
-  const heroDecl = temYoY
-    ? `<div class="msg">Vs o ano passado, o canal <b style="color:#ffd2cc">caiu ${sgnP(recYoY)}</b> em receita e <b style="color:#ffd2cc">${sgnP(bolYoY)}</b> em cupons — <b>perdemos fluxo</b>, gente entrando na loja. Mas a gente <b>vende bem quem entra</b> (ticket ${sgnP(tickYoY)}). E a própria rede prova que dá pra recuperar <b>${fmtBRL(anual)}/ano</b> levando cada loja ao nível da <b>melhor delas</b>.</div>`
-    : `<div class="msg">Nosso canal <b>vende bem</b> — o que falta é <b>execução</b>, não mercado. E a própria rede já prova que dá pra recuperar <b>${fmtBRL(anual)}/ano</b> fazendo cada loja operar como a <b>melhor delas</b> já opera.</div>`;
-  v.innerHTML=`<div class="pres">
-    <div class="pres-hero">${heroDecl}</div>
-    <div class="pres-kpis">
-      ${k(fmtBRL(canal.gmvMes*12), 'faturamento por ano · '+fmtN(canal.n)+' lojas')}
-      ${temYoY?k('<span style="color:var(--verm)">'+sgnP(recYoY)+'</span>', 'vs ano passado'+(gapAno?' · ~'+fmtBRL(gapAno)+'/ano a menos':'')):''}
-      ${k('+'+fmtBRL(anual), 'oportunidade por ano · provada pela rede')}
-      ${k('+'+fmtPct(pct,0), 'sobre o faturamento de hoje')}
-    </div>
-    <div class="pres-sec-t">Por que dá pra acreditar</div>
-    <p class="an-lead" style="max-width:880px">${temYoY?`A queda foi de <b>fluxo</b> (menos cupons), não de quem somos: ticket, margem e fidelidade seguem fortes. Recuperar o que caiu${gapAno?` (~${fmtBRL(gapAno)}/ano)`:''} é da <b>mesma ordem de grandeza</b> de nivelar a execução pela melhor loja (${fmtBRL(anual)}/ano) — o mesmo movimento resolve os dois. `:''}Não é meta inventada nem comparação de fora: cada número é <b>o que a melhor loja da nossa própria rede já faz hoje</b>. Se uma consegue, as outras conseguem.</p>
-    <div class="pres-sec-t">O plano — 4 alavancas</div>
-    <div class="plan">
-      ${card('1 · Disciplina de desconto', `A <b>${esc(nomeLoja(descCh))}</b> vende com só ${fmtPct(descCh.descEtiqPct)} de desconto. Desconto não enche a loja — a gente mediu. Meta: ninguém muito acima disso.`, opDesc)}
-      ${card('2 · A cesta (2º item)', `A <b>${esc(nomeLoja(cestaCh))}</b> fecha ${fmtN(cestaCh.itensBoleto,2)} itens por cupom. Regra simples no caixa: ninguém sai com 1 item só.`, opItens)}
-      ${card('3 · Capturar as datas', `Kits de Mães, Namorados e Pais valem ~R$ 319 mil/período na rede — e tem loja deixando passar. Toda data, todo mundo na campanha.`, null)}
-      ${card('4 · Campeão em todas as lojas', `Produto que é herói numa loja tem que estar e girar nas outras — padronizar o sortimento campeão entre as lojas fecha lacuna sem custo novo.`, null)}
-    </div>
-    ${cestaCh&&descCh?`<div class="mirror" style="margin-top:16px"><div class="mt">O espelho da rede</div><b>${esc(nomeLoja(cestaCh))}</b> é a melhor da rede em cesta e a <b>${esc(nomeLoja(descCh))}</b> a melhor em desconto — <b>cada uma é a professora da outra</b>. Dá pra resolver entre nós, sem consultoria.</div>`:''}
-    <p class="note" style="margin-top:16px">Navegue pelas abas acima para detalhar cada ponto ao vivo. Números do período ${pg?pg.label:''} · ordem de grandeza, ceteris paribus.</p>
-  </div>`;
-}
-
 
 /* ---------- Orquestração ---------- */
 function renderAll(){
@@ -1632,7 +1559,6 @@ function renderAll(){
   const canal = canalAgregado(lojas);
   const findings = gerarEstrategias(lojas, canal);
   renderChips(lojas);
-  renderApresentacao(lojas, canal, findings);
   renderCanal(lojas, canal, findings);
   renderTendencia(lojas, canal);
   renderLojas(lojas);

@@ -364,4 +364,18 @@ Usuário: *"essa app está muito poluída visualmente, remova tudo que for garba
 
 **§§14–21 (Análise/Sortimento/Categorias/Lucro/Equipe) ficam como histórico** — as features saíram da UI em 24/06; código no histórico git (commit anterior `476a487`), recuperável.
 
-**Validação:** `node --check` OK; jsdom — **5 abas** (apresentacao/canal/tendencia/lojas/estrategias), troca de abas, expand, rename/XSS escapado, `#fStrat` ok, **zero erros de console**. Pipeline ABC/derivar/perf intacto. Arquivo 2408→1676 linhas.
+**Validação:** `node --check` OK; jsdom — **5 abas** (apresentacao/canal/tendencia/lojas/estrategias), troca de abas, expand, rename/XSS escapado, `#fStrat` ok, **zero erros de console**. Pipeline ABC/derivar/perf intacto. Arquivo 2408→1676 linhas. Commit `d341f91`.
+
+## 25. Remove Apresentação + abas mais visuais / menos poluídas (24/06/2026)
+
+Usuário: *"remova a aba de apresentação e deixe as outras abas mais visuais, ainda está muito poluída."* → **4 abas**: Diagnóstico (agora **default**, `class on`), Tendência, Lojas, Benchmark.
+
+- **Apresentação removida** — nav + view + `renderApresentacao` (65 linhas) + chamada no `renderAll`. `melhorRede` mantido (usado pelo Benchmark). Default movido p/ `canal`.
+- **Diagnóstico (`renderCanal`) menos texto** — narrativa de ~5 parágrafos → só o `tendPara` (tendência YoY + meta, 2 linhas com nº em cor). Cortados "O canal faz…/forte e uniforme/onde a execução varia/aster". Pills (YoY+KPI) e tabela "Gargalo nº 1" mantidos. (As computações `ext/eDesc/eRec/eFlux/eTick/eFid/eTroca/top2/micro/merged/margLo/margHi` ficaram **inertes** — código morto invisível, não removido p/ não arriscar; scrub opcional.)
+- **Lojas (`renderLojas`) cards leves** — o `perfPanel` (scorecard PEF de 15 linhas) saiu do corpo do card e foi pro **detalhe expansível** (`${perfPanel}${det}`), junto com mix/ABC/SKUs. Card default = KPIs + réguas (visual). Botão: "ver desempenho PEF, mix e curva ABC".
+- **Benchmark (`renderEstrategias`) achados compactos** — removidos o parágrafo `diag` e a linha `bench-l` de cada card; sobra **badge (sev+loja) + título + régua `svizHTML` (o visual) + R$**. 28 réguas, 2 heatmaps (matriz + perfMatriz) mantidos como centro visual. (`dk/bench/cv/benchL` inertes.)
+- **Tendência mantida** — já é a aba mais visual (barras divergentes + funil + tabela); leads são a explicação do "porquê" com nº em negrito/cor.
+
+**CSS morto acumulado** (abas removidas + `.diag`/`.bench-l`): inerte, invisível. Scrub dedicado pendente se quiser arquivo limpo por dentro.
+
+**Validação:** `node --check` OK; jsdom — 4 abas (default Diagnóstico), troca de abas, expand mostra PEF, rename/XSS escapado, `#fStrat` ok, **zero erros de console**. Tamanhos: canal 5945→4808, estrategias 48524→40957. Pipeline ABC/derivar/perf intacto.
