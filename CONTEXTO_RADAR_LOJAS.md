@@ -346,4 +346,22 @@ Pedido do usuário ("tendo esses dados ricos, quais análises podem ser feitas" 
 2. **Funil de fidelização** — Identifica (`idCliente` 116%, RBV >100) → Cadastra (`penFid` 95,6%) → **Resgata (`resgateFid` 54,3%)**. Vaza no resgate (alavanca de retorno = fluxo barato). Resgate YoY +13,1pp. Heatmap de resgate por loja (24303 pior, 39%, apesar de bater meta — vende mas não traz de volta).
 3. **Alavancas de fluxo** — Conversão de Ação de Fluxo (canal −5,6pp YoY, na direção dos boletos) + Serviços em Loja (contagem absoluta + YoY), com **Boletos YoY** ao lado pra associação loja-a-loja. Caveat n=6, sem série mensal: sinaliza, não prova.
 
-**Validação:** `node --check` OK; jsdom — 10 abas, bridge soma exata (canal e por loja), funil 116/95,6/54,3, zero erros de console. **Pendente de commit** (ver final desta seção quando feito).
+**Validação:** `node --check` OK; jsdom — 10 abas, bridge soma exata (canal e por loja), funil 116/95,6/54,3, zero erros de console. Commit `476a487`.
+
+## 24. Corte para 5 abas — foco em "por que o canal cai" (24/06/2026)
+
+Usuário: *"essa app está muito poluída visualmente, remova tudo que for garbage e deixe só o que realmente interessa para uma análise do que porque meu canal loja está indo mal."* Delegou a priorização a mim. Critério: **manter só o que responde "por que o canal cai"**; cortar o que responde outra pergunta (sortimento/lucro/mix).
+
+**De 10 → 5 abas. Mantidas:** Apresentação, Diagnóstico, Tendência, Lojas, Benchmark e achados. **Removidas:** Análise, Sortimento, Categorias, Lucro, Equipe.
+
+**Racional do corte** (apoiado na análise profunda de 23-24/06 — a queda é **tráfego −25%**, mascarada por preço +10%): Lucro (margem 62% é saudável, não é a causa), Categorias (mix estável, não explica), Sortimento ("o que estocar", outra pergunta), Análise (frameworks acadêmicos demais), Equipe (ângulo de execução; a queda é de tráfego de rede, não de vendedora — é a "primeira a voltar" se sentir falta).
+
+**Execução (script `cut.js`, por âncoras de conteúdo):** removidas 731 linhas (2408→1677). Duas faixas contíguas — Range 1 `aggCat`+`renderCategorias`; Range 2 `gini`…`renderEquipe` (helpers exclusivos + 4 render fns). `renderApresentacao` (keeper) ficava entre as duas. Removidos também 5 botões nav, 5 `<section>` e 5 chamadas no `renderAll`. **Helpers exclusivos removidos:** `gini, cvar, pearson, lorenzSVG, pareto80, scatterSVG, rangeBarSVG, crossSKU, aggCat, aggProfit, MOVIMENTACOES, gapSel, bridgeSel`. **Mantidos (compartilhados):** `catOB`/`marcaDe` (core de `analisarABC`), `heatCell`, `donutSVG`, `melhorRede`/`DIMKEY`/`canalVal`, `matrizHTML`, `svizHTML`/`SPEC`/`regua`, `perfFmt`/`perfPanel`/`perfMatrizHTML`, `resumoSlack`, `gerarEstrategias`.
+
+**Fix de referência pendurada:** card 4 da Apresentação citava "a aba Sortimento lista…" → reescrito sem citar a aba removida.
+
+**CSS morto:** as regras dos blocos removidos (`.hbar/.hbars`, `.stack`, `.gini-grid`, `.quad`, `.corr`, `.skuchip`, `.cell/.he/.ve/.mo/.au`, scatter/lorenz) ficaram **inertes** (0 uso confirmado; invisíveis no render). Decisão: **não remover** — risco de quebrar estilo de sobrevivente por ganho invisível; scrub opcional num passe dedicado.
+
+**§§14–21 (Análise/Sortimento/Categorias/Lucro/Equipe) ficam como histórico** — as features saíram da UI em 24/06; código no histórico git (commit anterior `476a487`), recuperável.
+
+**Validação:** `node --check` OK; jsdom — **5 abas** (apresentacao/canal/tendencia/lojas/estrategias), troca de abas, expand, rename/XSS escapado, `#fStrat` ok, **zero erros de console**. Pipeline ABC/derivar/perf intacto. Arquivo 2408→1676 linhas.
