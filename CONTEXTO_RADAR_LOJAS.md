@@ -378,4 +378,14 @@ Usuário: *"remova a aba de apresentação e deixe as outras abas mais visuais, 
 
 **CSS morto acumulado** (abas removidas + `.diag`/`.bench-l`): inerte, invisível. Scrub dedicado pendente se quiser arquivo limpo por dentro.
 
-**Validação:** `node --check` OK; jsdom — 4 abas (default Diagnóstico), troca de abas, expand mostra PEF, rename/XSS escapado, `#fStrat` ok, **zero erros de console**. Tamanhos: canal 5945→4808, estrategias 48524→40957. Pipeline ABC/derivar/perf intacto.
+**Validação:** `node --check` OK; jsdom — 4 abas (default Diagnóstico), troca de abas, expand mostra PEF, rename/XSS escapado, `#fStrat` ok, **zero erros de console**. Tamanhos: canal 5945→4808, estrategias 48524→40957. Pipeline ABC/derivar/perf intacto. Commit `493e31b`.
+
+## 26. Benchmark filtrado + scrub de código morto (24/06/2026)
+
+Dois ajustes que o usuário pediu (após o §25):
+1. **Benchmark abre filtrado na maior loja** — `filtro` default = `lojas[0].codigo` (antes `'all'`). Default mostra ~3 achados em vez de 28; os 2 heatmaps acima dão a visão de rede; o seletor tem "Todas as lojas". `estrategias` no boot: 40957→17376.
+2. **Scrub de código morto** (orfanado pelos cortes §24/§25):
+   - **JS:** `renderCanal` perdeu `tot/media/top2/top2pct/micro/merged/ext/eDesc/eRec/eFlux/eTick/eFid/eTroca/margN/margLo/margHi` (só `byGmv` + `gargalo` ficaram). `renderEstrategias` perdeu `dk/bench/cv/benchL`. Funções órfãs removidas: **`melhorRede`, `DIMKEY`, `canalVal`** (só alimentavam o `benchL`). Mantidos `vfmt`/`regua`/`SPEC`/`cls` (usados por Lojas/svizHTML).
+   - **CSS:** 34 regras mortas removidas — `.gini-grid, .lorenz, .hbar(s) +desc, .skuchip +var, .quad, .scatter, .corr +desc, .stack(-row) +desc, .bench-l, .strat .diag, .hm .cell|.he|.ve|.mo|.au`. Vivas intactas (`.heat, .hm, .strat, .sviz, .pill, .kg, .ebar, .funnel, .sku-tbl, .vtag…`).
+
+**Validação:** `node --check` OK; jsdom — 4 abas, Benchmark default 3 achados + heatmaps, Lojas 60 KPIs + PEF no expand, rename/XSS, **zero erros de console**. Arquivo 1610→1534 linhas.
