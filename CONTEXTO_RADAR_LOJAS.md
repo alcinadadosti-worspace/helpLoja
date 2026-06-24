@@ -389,3 +389,12 @@ Dois ajustes que o usuário pediu (após o §25):
    - **CSS:** 34 regras mortas removidas — `.gini-grid, .lorenz, .hbar(s) +desc, .skuchip +var, .quad, .scatter, .corr +desc, .stack(-row) +desc, .bench-l, .strat .diag, .hm .cell|.he|.ve|.mo|.au`. Vivas intactas (`.heat, .hm, .strat, .sviz, .pill, .kg, .ebar, .funnel, .sku-tbl, .vtag…`).
 
 **Validação:** `node --check` OK; jsdom — 4 abas, Benchmark default 3 achados + heatmaps, Lojas 60 KPIs + PEF no expand, rename/XSS, **zero erros de console**. Arquivo 1610→1534 linhas.
+
+## 27. Diagnóstico leva o fechamento "por que o canal cai" (24/06/2026)
+
+A pedido do usuário, o `tendPara` do `renderCanal` foi reescrito para o **diagnóstico completo em 3 parágrafos** (tudo computado de `state.perf.cp`, p/ usar na conversa com gerentes):
+1. **"o que está acontecendo"** — vendeu **−25,1% em unidades** e **−24,8% em clientes**; receita **−17,6%** só não foi pior porque **preço +10,0% (repasse de tabela) mascara**; é falta de gente entrando. Mesmas-lojas **−20,7%**.
+2. **"por que (provável)"** — não é margem/mix/desconto; queda **larga** (todas −23% a −35%, perfis opostos) → **causa sistêmica**, não execução de loja; **conversão de ação de fluxo −5,6pp** na rede; meta PEF −14,6% (só São Sebastião bate).
+3. **"o caminho"** — fluxo se recupera por **serviços / resgate de fidelidade (rede 54%) / conversão de ação de fluxo** (detalhe na aba Tendência); preço↑ com fluxo↓ é espiral, a defesa é tráfego.
+
+Achado-chave consolidado: **a queda é tráfego (~25% menos unidades/clientes); o +10% de preço é repasse passivo que esconde o tamanho real do tombo.** Limites: causa externa não está no dado; faltam série **mensal** e base **por cliente (RFM)**. **Validação:** jsdom — 3 parágrafos, números corretos, zero erros de console.

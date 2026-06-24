@@ -1164,14 +1164,22 @@ function renderCanal(lojas, canal, findings){
       + dpill('Boleto médio vs ano passado', tickYoY, true, 'segura parte da queda')
       + dpill('Receita vs meta PEF', recMeta, true, hintMeta)
       + '</div>';
-    // fragmentos calculados fora do template (evita template aninhado em 3 níveis)
+    // leitura "por que o canal não vai bem" (fragmentos fora do template p/ evitar aninhamento)
+    const precoYoY = (cp.precoMedio && cp.precoMedio.vsAnt!=null) ? cp.precoMedio.vsAnt/100 : tickYoY;
+    const unitYoY  = (cp.itens && cp.itens.vsAnt!=null) ? cp.itens.vsAnt/100 : bolYoY;
+    const convYoYpp= (cp.convFluxo && cp.convFluxo.vsAnt!=null) ? cp.convFluxo.vsAnt : null;
+    const resgCanal= (cp.resgateFid && cp.resgateFid.real!=null) ? cp.resgateFid.real : null;
+    const bolYoYs  = ss.map(l=>l.perf.boletos.vsAnt).filter(x=>x!=null);
+    const worstBol = bolYoYs.length?Math.min(...bolYoYs):null, bestBol = bolYoYs.length?Math.max(...bolYoYs):null;
     const semNomes = semBase.map(l=>esc(nomeLoja(l))).join(' e ');
-    const semFrag = (ssYoY!=null && semBase.length) ? ` — ${semNomes} não ${semBase.length>1?'têm':'tem'} ano anterior no sistema, o que alivia o número do canal` : '';
-    const ssFrag = ssYoY!=null ? ` Nas <b>${ss.length} lojas com base comparável</b> a retração é de <b>${sgn(ssYoY)}</b>${semFrag}.` : '';
-    const batemNomes = batem.map(l=>esc(nomeLoja(l))).join(', ');
-    const metaFrag = batem.length ? ` e <b>só ${batemNomes}</b> bate a própria meta de receita (${sgn(batem[0].perf.receita.vsMeta)})` : '';
-    tendPara = `<p><span class="tag bad">tendência</span>O canal está <b>encolhendo</b>: receita <b style="color:var(--verm)">${sgn(recYoY)}</b> e cupons <b style="color:var(--verm)">${sgn(bolYoY)}</b> vs o mesmo período do ano passado. A queda é de <b>fluxo</b> (menos gente comprando), não de ticket — o boleto médio até <b style="color:var(--verde)">${sgn(tickYoY)}</b> e segura parte do tombo.${ssFrag}</p>
-      <p><span class="tag warn">meta PEF</span>Contra a meta, o canal fecha <b>${sgn(recMeta)}</b>${metaFrag}. As demais ficam abaixo da meta — a recuperação do que caiu é a oportunidade nº 1, antes mesmo de afinar execução.</p>`;
+    const ssFrag   = ssYoY!=null ? ` Nas ${ss.length} lojas com base comparável a retração real é de <b>${sgn(ssYoY)}</b>${semBase.length?` (${semNomes} sem ano anterior no sistema)`:''}.` : '';
+    const rangeFrag= (worstBol!=null && bestBol!=null) ? `todas as lojas caíram de <b>${sgn(worstBol)}</b> a <b>${sgn(bestBol)}</b> em clientes, mesmo as de perfis opostos` : 'em lojas de perfis opostos';
+    const convFrag = convYoYpp!=null ? ` O motor de atração caiu na rede inteira: <b>conversão de ação de fluxo ${(convYoYpp>0?'+':'')+fmtN(convYoYpp,1)}pp</b>.` : '';
+    const metaFrag = batem.length ? ` Contra a meta PEF o canal fecha <b>${sgn(recMeta)}</b> — só ${batem.map(l=>esc(nomeLoja(l))).join(', ')} bate.` : '';
+    const resgFrag = resgCanal!=null ? `rede ${fmtPct(resgCanal,0)}, metade não volta` : 'cliente que volta';
+    tendPara = `<p><span class="tag bad">o que está acontecendo</span>O canal vendeu <b style="color:var(--verm)">${sgn(unitYoY)}</b> em <b>unidades</b> e <b style="color:var(--verm)">${sgn(bolYoY)}</b> em <b>clientes</b> vs o ano passado. A receita caiu <b>${sgn(recYoY)}</b> — só não foi pior porque o <b>preço subiu ${sgn(precoYoY)}</b> (repasse de tabela), que <b>mascara</b> o tombo. É <b>falta de gente entrando na loja</b>, não de venda.${ssFrag}</p>
+      <p><span class="tag warn">por que (provável)</span>Não é margem (saudável), nem mix (cesta estável), nem desconto — <b>quem entra compra bem</b>. A queda é <b>larga</b> (${rangeFrag}), o que aponta <b>causa sistêmica</b> (consumo, concorrência ou menos ação de atração) — não execução de uma loja só.${convFrag}${metaFrag}</p>
+      <p><span class="tag ok">o caminho</span>Recuperar fluxo está medido e é desigual entre as lojas: <b>serviços em loja</b>, <b>resgate de fidelidade</b> (${resgFrag}) e <b>conversão de ação de fluxo</b> — o detalhe e o por-loja estão na aba <b>Tendência</b>. Defender o faturamento subindo preço, com o fluxo caindo, é espiral: a defesa é <b>tráfego</b>.</p>`;
   }
   v.innerHTML = `
     ${cp?`<div class="sec-t" style="margin-bottom:8px">Tendência vs ano passado e meta PEF <span class="meta" style="font-weight:400">· ${pm&&pm.periodoAtual?esc(pm.periodoAtual):''} vs ${pm&&pm.periodoAnterior?esc(pm.periodoAnterior):'ano anterior'} · fonte: Resumo de Performance</span></div>${yoyBand}`:''}
