@@ -398,3 +398,13 @@ A pedido do usuário, o `tendPara` do `renderCanal` foi reescrito para o **diagn
 3. **"o caminho"** — fluxo se recupera por **serviços / resgate de fidelidade (rede 54%) / conversão de ação de fluxo** (detalhe na aba Tendência); preço↑ com fluxo↓ é espiral, a defesa é tráfego.
 
 Achado-chave consolidado: **a queda é tráfego (~25% menos unidades/clientes); o +10% de preço é repasse passivo que esconde o tamanho real do tombo.** Limites: causa externa não está no dado; faltam série **mensal** e base **por cliente (RFM)**. **Validação:** jsdom — 3 parágrafos, números corretos, zero erros de console.
+
+## 28. "Gargalo nº 1" vira bubble de priorização (24/06/2026)
+
+O usuário pediu o bloco "Gargalo nº 1 de cada loja" mais visual ("para um trabalho de data science"); escolheu **bubble/scatter** entre 3 opções. Nova função **`gargaloBubbleHTML(lojas, findings)`** (SVG puro, substitui a tabela `.gtbl`):
+- **x = GMV/mês** (tamanho da loja), **y = R$/mês de oportunidade** do gargalo nº 1, **bolha ∝ % de ganho** sobre o GMV, **cor = tipo** do gargalo (`tipo()` por keyword: fluxo/desconto/cesta/recorrência/identificação/trocas/cauda). Medianas (sobre as lojas reais) desenham o quadrante **"ATACA PRIMEIRO ↗"**; `<title>` com detalhe no hover.
+- **Armadilha tratada (essencial):** o gargalo de fluxo das lojas pequenas gera R$ irreal (São Sebastião +57%, Palmeira Sustentável **+364%** do GMV = *teto aritmético*). Plotado cru, a menor loja viraria a maior bolha no topo. **Fix:** `p.teto = op/gmv > 0,20` → essas saem da escala (`yMax`/`pctMax`/medianas só das reais), são fixadas no topo como **bolhas tracejadas pequenas (r=10) com "↑R$Xk\*"** + ressalva. Resultado honesto: **Palmeira** (grande + maior gargalo real, R$12k/8,3%, cesta) emerge no quadrante de prioridade junto da Coruripe; as 4 reais se espalham.
+- **Polimento:** *dodge* horizontal p/ bolhas quase coincidentes (Penedo≈Teotônio, ~8px→52px) + **de-colisão de rótulos** (acima/abaixo). Legenda de cores + nota.
+- **Limpeza:** `gargalo` e `byGmv` do `renderCanal` ficaram órfãos (a bolha tem `garg` próprio) → removidos.
+
+**Validação:** `node --check` OK; jsdom — 4 abas, 6 bolhas (2 tracejadas/teto), rótulos sem colisão, rename/XSS escapado, `#fStrat` ok, **0 refs órfãs**, **zero erros de console**.

@@ -1123,17 +1123,77 @@ function renderChips(lojas){
     + (state.files.length ? '' : `<span class="fchip"><span class="seal">✦ análise pré-carregada</span> <span class="meta">6 lojas (ABC + indicadores) validadas contra o rodapé do RetaguardaGB</span></span>`);
 }
 
+/* Bubble de priorização do "Gargalo nº 1": x=GMV/mês · y=R$/mês de oportunidade · bolha ∝ % de ganho · cor=tipo */
+function gargaloBubbleHTML(lojas, findings){
+  const garg = l => { const fs=findings.filter(s=>s.loja.codigo===l.codigo); if(!fs.length) return null; return fs.filter(s=>s.impacto).sort((a,b)=>b.impacto-a.impacto)[0]||fs[0]; };
+  const tipo = t => { const n=norm(t);
+    if(n.includes('fluxo')) return {lb:'Fluxo (tráfego)', c:'#E16358'};
+    if(n.includes('desconto')) return {lb:'Desconto', c:'#D9B25F'};
+    if(n.includes('cesta')||n.includes('itens')) return {lb:'Cesta (2º item)', c:'#5BA8D9'};
+    if(n.includes('recorrencia')) return {lb:'Recorrência', c:'#B07CC6'};
+    if(n.includes('identif')||n.includes('fidelidade')) return {lb:'Identificação', c:'#2BB673'};
+    if(n.includes('trocas')) return {lb:'Trocas', c:'#E8B84B'};
+    if(n.includes('cauda')) return {lb:'Cauda longa', c:'#7FBF63'};
+    return {lb:'Outro', c:'#9DB7A8'}; };
+  const pts = lojas.map(l=>{ const g=garg(l); const gmv=l.gmvMes||0; const op=(g&&g.impacto)?g.impacto:0;
+    return { nome:nomeLoja(l), short:lojaCurta(nomeLoja(l)), gmv, op, pct: gmv?op/gmv*100:0,
+      t: g?tipo(g.titulo):{lb:'Sem desvio',c:'#6E8A7B'}, titulo: g?g.titulo:'sem desvio relevante vs a rede',
+      micro:false }; });
+  if(!pts.length) return '';
+  // "teto aritmético": gargalo de fluxo em loja pequena gera R$ irreal (>20% do GMV/mês) — flag e tira da escala
+  pts.forEach(p=>p.teto = p.op>0 && p.gmv>0 && p.op/p.gmv>0.20);
+  const real = pts.filter(p=>!p.teto);
+  const W=720,H=380,mL=70,mR=22,mT=26,mB=48;
+  const xs=pts.map(p=>p.gmv);
+  const yReal=(real.length?real:pts).map(p=>p.op), pReal=(real.length?real:pts).map(p=>p.pct);
+  const xMin=Math.min(...xs), xMax=Math.max(...xs); const xp=(xMax-xMin)*0.18||xMax*0.1||1;
+  let xLo=Math.max(0,xMin-xp), xHi=xMax+xp; if(xHi<=xLo) xHi=xLo+1;
+  const yMax=Math.max(...yReal,1)*1.25, pctMax=Math.max(...pReal,0.01);
+  const X=v=>mL+(v-xLo)/(xHi-xLo)*(W-mL-mR);
+  const Y=v=>H-mB-(v/yMax)*(H-mT-mB);
+  const R=p=>p.teto?10:Math.max(8,Math.min(32, 9+Math.sqrt(p.pct/pctMax)*22));
+  const med=a=>{ const s=[...a].sort((x,y)=>x-y),n=s.length; return n?(n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2):0; };
+  const medX=med((real.length>1?real:pts).map(p=>p.gmv)), medY=med((real.length?real:pts).map(p=>p.op));
+  const kf=v=>v>=1000?('R$'+(v/1000).toFixed(v<10000?1:0).replace('.',',')+'k'):'R$'+Math.round(v);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:780px" role="img" aria-label="Priorização dos gargalos por loja">`;
+  svg+=`<rect x="${mL}" y="${mT}" width="${W-mL-mR}" height="${H-mT-mB}" fill="rgba(12,22,18,0.33)" stroke="var(--line)" rx="8"/>`;
+  svg+=`<rect x="${X(medX).toFixed(1)}" y="${mT}" width="${(W-mR-X(medX)).toFixed(1)}" height="${(Y(medY)-mT).toFixed(1)}" fill="rgba(52,199,123,0.07)"/>`;
+  svg+=`<line x1="${X(medX).toFixed(1)}" y1="${mT}" x2="${X(medX).toFixed(1)}" y2="${H-mB}" stroke="rgba(255,255,255,0.14)" stroke-dasharray="4 4"/>`;
+  svg+=`<line x1="${mL}" y1="${Y(medY).toFixed(1)}" x2="${W-mR}" y2="${Y(medY).toFixed(1)}" stroke="rgba(255,255,255,0.14)" stroke-dasharray="4 4"/>`;
+  svg+=`<text x="${W-mR-8}" y="${mT+15}" text-anchor="end" font-size="10.5" font-weight="800" fill="#34C77B" letter-spacing=".05em">ATACA PRIMEIRO ↗</text>`;
+  svg+=`<text x="${mL+(W-mL-mR)/2}" y="${H-12}" text-anchor="middle" font-size="11" fill="var(--tx2)">GMV / mês  (tamanho da loja) →</text>`;
+  svg+=`<text transform="translate(16,${mT+(H-mT-mB)/2}) rotate(-90)" text-anchor="middle" font-size="11" fill="var(--tx2)">oportunidade do gargalo (R$/mês) ↑</text>`;
+  svg+=`<text x="${mL}" y="${H-mB+16}" text-anchor="middle" font-size="9" fill="var(--tx3)">${kf(xLo)}</text>`;
+  svg+=`<text x="${W-mR}" y="${H-mB+16}" text-anchor="middle" font-size="9" fill="var(--tx3)">${kf(xHi)}</text>`;
+  svg+=`<text x="${mL-6}" y="${H-mB+3}" text-anchor="end" font-size="9" fill="var(--tx3)">0</text>`;
+  svg+=`<text x="${mL-6}" y="${(Y(yMax)+9).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--tx3)">${kf(yMax)}</text>`;
+  const nodes = pts.map(p=>({p, cx:X(p.gmv), r:R(p), cy:p.teto?(mT+12):Y(p.op)}));
+  // dodge horizontal p/ bolhas quase coincidentes (ex.: Penedo≈Teotônio) — jitter pequeno só p/ legibilidade
+  nodes.slice().sort((a,b)=>a.cx-b.cx).reduce((prev,b)=>{ if(prev && Math.abs(b.cy-prev.cy)<(b.r+prev.r) && b.cx-prev.cx<(b.r+prev.r)*0.95) b.cx=Math.min(W-mR-6, prev.cx+(b.r+prev.r)*0.95); return b; }, null);
+  // rótulo acima por padrão; se colide com um já posto (ou perto do topo), vai p/ baixo
+  const placed=[]; nodes.slice().sort((a,b)=>a.cy-b.cy).forEach(nd=>{ let side = (nd.p.teto || nd.cy-nd.r-14<=mT+2) ? 'below':'above';
+    for(const q of placed){ if(Math.abs(nd.cx-q.cx)<64 && Math.abs(nd.cy-q.cy)<34) side=(q.side==='above'?'below':'above'); }
+    nd.side=side; placed.push(nd); });
+  for(const nd of nodes){ const {p,cx,cy,r,side}=nd;
+    const ny=side==='above'?cy-r-14:cy+r+25, vy=side==='above'?cy-r-3:cy+r+13;
+    svg+=`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="${p.t.c}" fill-opacity="${p.teto?0.18:0.42}" stroke="${p.t.c}" stroke-width="1.6"${p.teto?' stroke-dasharray="3 2"':''}><title>${esc(p.nome)} — ${esc(p.titulo)}\n${kf(p.op)}/mês · +${fmtN(p.pct,1)}% sobre o GMV${p.teto?'\n⚠ teto aritmético: oportunidade irreal p/ loja pequena (acima da escala)':''}</title></circle>`;
+    svg+=`<text x="${cx.toFixed(1)}" y="${ny.toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--tx)">${esc(p.short)}${p.teto?'*':''}</text>`;
+    svg+=`<text x="${cx.toFixed(1)}" y="${vy.toFixed(1)}" text-anchor="middle" font-size="9.5" fill="var(--tx2)">${p.op>0?(p.teto?'↑'+kf(p.op):kf(p.op)):'—'}</text>`;
+  }
+  svg+=`</svg>`;
+  const tiposUnq=[]; pts.forEach(p=>{ if(p.op>0 && !tiposUnq.find(t=>t.lb===p.t.lb)) tiposUnq.push(p.t); });
+  const leg=tiposUnq.map(t=>`<span style="white-space:nowrap"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${t.c};margin-right:5px;vertical-align:-1px"></span>${esc(t.lb)}</span>`).join('');
+  const temTeto=pts.some(p=>p.teto);
+  return `<div style="margin:6px 0 2px">${svg}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:var(--tx2);margin-top:4px">${leg}<span>⬤ bolha ∝ <b>% de ganho</b> sobre o GMV da loja</span></div>
+    <p class="note">Cada loja por <b>tamanho</b> (GMV/mês, eixo x) × <b>oportunidade do gargalo nº 1</b> (R$/mês, eixo y); cor = <b>tipo</b> do gargalo, tamanho da bolha = <b>ganho relativo</b>. Quadrante verde (alto + à direita) = onde mexer rende mais. ${temTeto?'<b>*</b> fluxo acima da escala (teto aritmético de loja pequena), não meta. ':''}Passe o mouse para o detalhe. Ordem de grandeza vs a rede — evidência na aba <b>Benchmark e achados</b>.</p>`;
+}
+
 /* ---------- Render: Canal ---------- */
 function renderCanal(lojas, canal, findings){
   const v = $('#view-canal');
   if (!lojas.length){ v.innerHTML = `<div class="empty"><b>Nenhuma loja carregada.</b><br>Arraste os PDFs do ABC de Vendas e a planilha de indicadores na área acima.</div>`; return; }
   const kpi = (lb, val, hint='') => `<div class="pill"><div class="lb">${lb}</div><div class="v num">${val}</div>${hint?`<div class="hint">${hint}</div>`:''}</div>`;
-  const byGmv = [...lojas].sort((a,b)=>(b.gmvMes||0)-(a.gmvMes||0));
-  const gargalo = l => {
-    const fs = findings.filter(s=>s.loja.codigo===l.codigo);
-    if(!fs.length) return null;
-    return fs.filter(s=>s.impacto).sort((a,b)=>b.impacto-a.impacto)[0] || fs[0];
-  };
   // ----- Camada de tendência (Resumo de Performance: meta PEF + ano anterior) -----
   const cp = state.perf && state.perf.cp;
   const pm = state.perf && state.perf.meta;
@@ -1196,15 +1256,8 @@ function renderCanal(lojas, canal, findings){
     <div class="narr">
       ${tendPara || `<p class="an-lead">O canal faz <b>${fmtBRL(canal.gmvMes)}/mês</b> em ${fmtN(canal.n)} lojas. Carregue o Resumo de Performance para a leitura de tendência (meta e ano anterior).</p>`}
     </div>
-    <div class="sec-t">Gargalo nº 1 de cada loja</div>
-    <div class="gtbl">
-      ${byGmv.map(l=>{ const g=gargalo(l); return `<div class="grow">
-        <div class="gl">${esc(nomeLoja(l))}<small>${fmtBRL(l.gmvMes)}/mês</small></div>
-        <div class="gd">${g?`<span class="dot ${g.sev}"></span>${esc(g.titulo)}`:'<span class="dot ok"></span>sem desvio relevante vs a rede'}</div>
-        <div class="gm">${g&&g.impacto?'~'+fmtBRL(g.impacto)+'/mês':'—'}</div>
-      </div>`; }).join('')}
-    </div>
-    <p class="note">"Gargalo nº 1" = o achado de maior materialidade de cada loja — evidência e benchmark na aba <b>Benchmark e achados</b>. A materialidade em R$ é ordem de grandeza vs a referência da rede (ceteris paribus), não meta.</p>`;
+    <div class="sec-t">Gargalo nº 1 de cada loja <span class="meta" style="font-weight:400">· tamanho × oportunidade × tipo</span></div>
+    ${gargaloBubbleHTML(lojas, findings)}`;
 }
 
 /* ---------- Render: Tendência (ponte YoY · funil de fidelização · alavancas de fluxo) ---------- */
