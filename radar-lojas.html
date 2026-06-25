@@ -88,15 +88,6 @@ input,select{font-family:inherit}
 
 /* ====== TABELA RANKING ====== */
 .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surf)}
-table.rank{border-collapse:collapse;width:100%;min-width:980px;font-size:12.5px}
-.rank th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);font-weight:700;text-align:right;padding:11px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
-.rank th:first-child,.rank td:first-child{text-align:left;position:sticky;left:0;background:var(--surf)}
-.rank td{padding:10px 12px;text-align:right;border-bottom:1px solid #1B312844;white-space:nowrap}
-.rank tr:last-child td{border-bottom:none}
-.rank td.loja{font-weight:700;color:var(--tx)}
-.rank td.loja small{display:block;color:var(--tx3);font-weight:500;font-size:10.5px}
-.rank tr:hover td{background:#1A2F2666}
-.rank tr:hover td:first-child{background:var(--surf3)}
 .heat{border-radius:6px;padding:2px 7px;display:inline-block;min-width:54px}
 
 /* ====== CARDS DE LOJA ====== */
@@ -1498,29 +1489,34 @@ function renderLojas(lojas){
   $$('[data-rename]').forEach(inp => inp.onchange = () => { state.nomes[inp.dataset.rename] = inp.value.trim(); setTimeout(renderAll, 0); }); // adia p/ fora do evento de blur (senão innerHTML remove o input em foco → erro de DOM)
 }
 
-/* ---------- Render: Benchmark e achados ---------- */
-/* matriz de benchmark: cada loja × indicador, heatmap relativo ao canal */
-function matrizHTML(lojas){
-  const col = k => lojas.map(x=>x[k]);
-  return `<div class="tbl-wrap"><table class="rank"><thead><tr>
-    <th>Loja</th><th>GMV/mês</th><th>Cupons/dia</th><th>Ticket</th><th>Itens/cupom</th><th>Fidel.</th>
-    <th>Desc. etiq.</th><th>Desc./cupom</th><th>Trocas</th><th>Margem</th><th>Recorr.</th>
-  </tr></thead><tbody>
-  ${lojas.map(l=>`<tr>
-    <td class="loja">${esc(nomeLoja(l))}<small>${l.codigo}${l.temPDF?' · ABC ✓':''}${l.temInd?' · ind ✓':''}</small></td>
-    <td>${heatCell(fmtBRL(l.gmvMes), l.gmvMes, col('gmvMes'), true)}</td>
-    <td>${heatCell(fmtN(l.boletosDia,1), l.boletosDia, col('boletosDia'), true)}</td>
-    <td>${heatCell(fmtBRL(l.ticket,2), l.ticket, col('ticket'), true)}</td>
-    <td>${heatCell(fmtN(l.itensBoleto,2), l.itensBoleto, col('itensBoleto'), true)}</td>
-    <td>${heatCell(fmtPct(l.fidPct), l.fidPct, col('fidPct'), true)}</td>
-    <td>${heatCell(fmtPct(l.descEtiqPct), l.descEtiqPct, col('descEtiqPct'), false)}</td>
-    <td>${heatCell(fmtBRL(l.descPorBoleto,2), l.descPorBoleto, col('descPorBoleto'), false)}</td>
-    <td>${heatCell(fmtPct(l.trocasPct), l.trocasPct, col('trocasPct'), false)}</td>
-    <td>${heatCell(fmtPct(l.margem), l.margem, col('margem'), true)}</td>
-    <td>${heatCell(fmtPct(l.recorrPct), l.recorrPct, col('recorrPct'), true)}</td>
-  </tr>`).join('')}
-  </tbody></table></div>`;
+/* Parallel coordinates: cada loja é uma linha cruzando os eixos; tudo normalizado, cima = melhor (eixos 'down' invertidos) */
+const PC_PAL = ['#5BA8D9','#E8CD8F','#B07CC6','#34C77B','#E89A93','#7FBF63','#D98FB0','#8FD9CE'];
+function parallelCoordsSVG(lojas, axes){
+  const cols=lojas; if(cols.length<2) return '';
+  const st={}; axes.forEach(a=>{ const vals=cols.map(l=>l[a.k]).filter(x=>x!=null&&!isNaN(x)); if(vals.length) st[a.k]={min:Math.min(...vals),max:Math.max(...vals)}; });
+  const used=axes.filter(a=>st[a.k]&&st[a.k].max>st[a.k].min);
+  if(used.length<2) return '';
+  const W=720,H=320,mL=46,mR=18,mT=28,mB=60, plotW=W-mL-mR, plotH=H-mT-mB, yTop=mT, yBot=mT+plotH;
+  const ax=i=>mL+i/(used.length-1)*plotW;
+  const good=(a,v)=>{ const s=st[a.k],p=clamp((v-s.min)/(s.max-s.min),0,1); return a.dir==='down'?1-p:p; };
+  const Y=g=>yBot-g*plotH;
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:760px" role="img" aria-label="Perfil das lojas (parallel coordinates)">`;
+  svg+=`<text x="${mL-8}" y="${yTop+3}" text-anchor="end" font-size="9" fill="var(--tx3)">melhor</text><text x="${mL-8}" y="${yBot+3}" text-anchor="end" font-size="9" fill="var(--tx3)">pior</text>`;
+  used.forEach((a,i)=>{ const x=ax(i).toFixed(1);
+    svg+=`<line x1="${x}" y1="${yTop}" x2="${x}" y2="${yBot}" stroke="rgba(255,255,255,0.16)"/>`;
+    svg+=`<text x="${x}" y="${yBot+16}" text-anchor="middle" font-size="9.5" fill="var(--tx2)">${esc(a.lb)}</text>`; });
+  cols.forEach((l,si)=>{ const c=PC_PAL[si%PC_PAL.length];
+    const pts=used.map((a,i)=>(l[a.k]!=null&&!isNaN(l[a.k]))?{x:ax(i),y:Y(good(a,l[a.k])),a,v:l[a.k]}:null).filter(Boolean);
+    if(pts.length<2) return;
+    const path=pts.map((p,j)=>(j?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1)).join(' ');
+    svg+=`<path d="${path}" fill="none" stroke="${c}" stroke-width="2" stroke-opacity="0.85"><title>${esc(nomeLoja(l))}</title></path>`;
+    pts.forEach(p=>svg+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="${c}"><title>${esc(nomeLoja(l))} · ${esc(p.a.lb)}: ${esc(p.a.fmt?p.a.fmt(p.v):fmtN(p.v,1))}</title></circle>`); });
+  svg+=`</svg>`;
+  const leg=cols.map((l,si)=>`<span style="white-space:nowrap;margin-right:13px"><span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${PC_PAL[si%PC_PAL.length]};margin-right:5px;vertical-align:-1px"></span>${esc(nomeLoja(l))}</span>`).join('');
+  return `<div style="margin:6px 0 2px">${svg}</div><div style="font-size:11.5px;color:var(--tx2);margin-top:2px">${leg}</div>`;
 }
+
+/* ---------- Render: Benchmark e achados ---------- */
 /* heatmap das alavancas PEF (Resumo de Performance) por loja: penetrações + meta + ano anterior */
 function perfMatrizHTML(lojas){
   const cols = lojas;
@@ -1549,9 +1545,9 @@ function renderEstrategias(lojas, canal, findings){
   const sevLb = { critico:'relevância alta', atencao:'relevância média', oportunidade:'relevância baixa' };
   const media = (canal.gmvMes||0)/(canal.n||lojas.length||1);
   v.innerHTML = `
-    <div class="sec-t">Benchmark entre as lojas</div>
-    ${matrizHTML(lojas)}
-    <p class="note"><b>Como ler:</b> verde = melhor posição relativa dentro do canal; vermelho = pior. A rede é a régua de execução; com o Resumo de Performance temos também <b>meta PEF e ano anterior</b> (abaixo). “Desc. etiqueta” = descontos ÷ (GMV + descontos); “Recorrência” = make + skincare + capilar no faturamento (ABC).</p>
+    <div class="sec-t">Perfil das lojas <span class="meta" style="font-weight:400">· cada linha é uma loja · cima = melhor · eixos normalizados</span></div>
+    ${parallelCoordsSVG(lojas, [{k:'gmvMes',lb:'GMV/mês',dir:'up',fmt:v=>kBRL(v)},{k:'boletosDia',lb:'Cupons/dia',dir:'up',fmt:v=>fmtN(v,1)},{k:'ticket',lb:'Ticket',dir:'up',fmt:v=>fmtBRL(v,0)},{k:'itensBoleto',lb:'Itens/cupom',dir:'up',fmt:v=>fmtN(v,2)},{k:'fidPct',lb:'Fidelidade',dir:'up',fmt:v=>fmtPct(v,0)},{k:'descEtiqPct',lb:'Desconto',dir:'down',fmt:v=>fmtPct(v,0)},{k:'margem',lb:'Margem',dir:'up',fmt:v=>fmtPct(v,0)},{k:'recorrPct',lb:'Recorrência',dir:'up',fmt:v=>fmtPct(v,0)}])}
+    <p class="note"><b>Como ler:</b> cada loja é uma linha; quanto mais <b>alto</b> em cada eixo, <b>melhor</b> (desconto invertido: linha alta = desconto baixo). Linhas que se cruzam = perfis opostos; uma linha consistentemente alta = loja forte em tudo. Passe o mouse para os valores. Logo abaixo, as penetrações PEF com meta e ano anterior.</p>
     ${perfMatrizHTML(lojas)}
     <div class="strat-top">
       <div class="sec-t" style="margin:0">Achados${filtro==='all'?` · ${findings.length}`:''}</div>

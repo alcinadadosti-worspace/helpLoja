@@ -427,3 +427,14 @@ O usuário escolheu **1 + 2** de três opções. Helpers novos (SVG): `perfilRed
 - **Limpeza:** removidos `dChip`/`sgnL`/`yoUnit` (só a tabela PEF antiga usava). As únicas tabelas restantes em Lojas são os top-10 SKUs (opção 3, não pedida).
 
 **Validação:** `node --check` OK; jsdom — 4 abas, **6 raio-X nos cards + 6 bullets PEF nos expands**, rename/XSS escapado, **0 refs órfãs**, **zero erros de console**.
+
+## 31. Benchmark — parallel coordinates no lugar do heatmap principal (24/06/2026)
+
+O usuário escolheu **parallel coordinates** (entre 3 opções) para deixar a aba Benchmark mais visual. Helper novo `parallelCoordsSVG(lojas, axes)` (+ paleta `PC_PAL`):
+- Cada loja é uma **polyline** cruzando 8 eixos (GMV/mês, Cupons/dia, Ticket, Itens/cupom, Fidelidade, Desconto, Margem, Recorrência), normalizados por eixo (min↔max das lojas) com **cima = melhor** (eixos `dir:'down'` invertidos — ex.: desconto). Cor = identidade da loja (legenda), valores no `<title>` (hover). Eixos sem spread são descartados.
+- **Substitui o `matrizHTML`** (heatmap loja×indicador, removido). Mantidos o **heatmap PEF** (`perfMatrizHTML`) e os achados com régua (filtro abre na maior loja).
+- **Limpeza:** `matrizHTML` removido + CSS `.rank*` (só ele usava).
+
+Mostra o "formato" de cada loja e o espelho Coruripe↔Palmeira visualmente. **Validação:** `node --check` OK; jsdom — 4 abas, parallel coords (6 linhas/8 eixos) + heatmap PEF + achados, `#fStrat` ok, rename/XSS escapado, **0 refs órfãs**, **zero erros de console**.
+
+> **Estado visual da app (24/06/2026):** 4 abas, todas com visual SVG próprio — Diagnóstico (pills + bubble de gargalos), Tendência (cascata/tornado/slopegraph/lollipop + funil), Lojas (raio-X vs rede + bullets PEF + donut/ABC), Benchmark (parallel coordinates + heatmap PEF + achados-régua).
