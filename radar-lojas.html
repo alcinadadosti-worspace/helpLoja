@@ -88,7 +88,6 @@ input,select{font-family:inherit}
 
 /* ====== TABELA RANKING ====== */
 .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surf)}
-.heat{border-radius:6px;padding:2px 7px;display:inline-block;min-width:54px}
 
 /* ====== CARDS DE LOJA ====== */
 .stores{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(420px,100%),1fr));gap:14px}
@@ -130,7 +129,7 @@ input,select{font-family:inherit}
 .potencial .v{font-size:26px;font-weight:800;color:var(--ouro2);letter-spacing:-.02em}
 .potencial .v small{font-size:13px;color:var(--tx2);font-weight:600}
 .sel{background:var(--surf);border:1px solid var(--line2);color:var(--tx);border-radius:10px;padding:8px 12px;font-size:13px}
-.strats{display:grid;gap:12px}
+.strats{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
 .strat{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;border-left:3px solid var(--tx3)}
 .strat.critico{border-left-color:var(--verm)}
 .strat.atencao{border-left-color:var(--ambar)}
@@ -238,12 +237,6 @@ input,select{font-family:inherit}
 .quad-card .qsku{font-size:11.5px;color:var(--tx2);padding:4px 0;border-top:1px solid #1B312833;display:flex;justify-content:space-between;gap:10px}
 .quad-card .qsku b{color:var(--tx);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .quad-card .qsku span{white-space:nowrap;color:var(--tx3);font-variant-numeric:tabular-nums}
-.hm{border-collapse:separate;border-spacing:0;font-size:11px}
-.hm th{font-weight:700;color:var(--tx3);font-size:9.5px;padding:4px;text-align:center;white-space:nowrap}
-.hm th.sku{text-align:left}
-.hm td{padding:1px}
-.hm td.sku{text-align:left;max-width:250px;overflow:hidden;white-space:nowrap}
-.hm td.sku .pmarca{font-size:9.5px;color:var(--tx3)}
 .rbar{display:block;margin-bottom:2px}
 .lucro-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(248px,1fr));gap:18px;max-width:1000px}
 .lucro-cols .mini-t{margin-bottom:9px}
@@ -1022,19 +1015,6 @@ function svizHTML(z){
 }
 const cls = (sp, v) => v==null||isNaN(v) ? '' : 'c-'+sp.estado(v).replace('warn','warn').replace('ok','ok').replace('bad','bad');
 
-/* ---------- Heatmap ---------- */
-function heat(v, min, max, goodHigh){
-  if (v==null||isNaN(v)||min==null||max==null||min===max) return null; // sem comparação relativa possível (ex.: 1 loja só)
-  let t = clamp((v-min)/(max-min), 0, 1); if (!goodHigh) t = 1-t;
-  const col = t > .66 ? '52,199,123' : t > .33 ? '232,184,75' : '225,99,88';
-  return `rgba(${col},${(0.13+0.13*Math.abs(t-0.5)*2).toFixed(2)})`;
-}
-function heatCell(txt, v, vals, goodHigh){
-  const nums = vals.filter(x=>x!=null&&!isNaN(x));
-  if (!nums.length || v==null||isNaN(v)) return `<span class="heat">${txt}</span>`;
-  const bg = heat(v, Math.min(...nums), Math.max(...nums), goodHigh);
-  return bg ? `<span class="heat num" style="background:${bg}">${txt}</span>` : `<span class="heat num">${txt}</span>`;
-}
 
 /* ---------- Donut SVG ---------- */
 const PAL = ['#34C77B','#D9B25F','#5BA8D9','#E8B84B','#B07CC6','#E16358','#7FBF63','#6E8A7B'];
@@ -1493,7 +1473,8 @@ function renderLojas(lojas){
 const PC_PAL = ['#5BA8D9','#E8CD8F','#B07CC6','#34C77B','#E89A93','#7FBF63','#D98FB0','#8FD9CE'];
 function parallelCoordsSVG(lojas, axes){
   const cols=lojas; if(cols.length<2) return '';
-  const st={}; axes.forEach(a=>{ const vals=cols.map(l=>l[a.k]).filter(x=>x!=null&&!isNaN(x)); if(vals.length) st[a.k]={min:Math.min(...vals),max:Math.max(...vals)}; });
+  const gv=(a,l)=>{ const x=a.get?a.get(l):l[a.k]; return (x!=null&&!isNaN(x))?x:null; };
+  const st={}; axes.forEach(a=>{ const vals=cols.map(l=>gv(a,l)).filter(x=>x!=null); if(vals.length) st[a.k]={min:Math.min(...vals),max:Math.max(...vals)}; });
   const used=axes.filter(a=>st[a.k]&&st[a.k].max>st[a.k].min);
   if(used.length<2) return '';
   const W=720,H=320,mL=46,mR=18,mT=28,mB=60, plotW=W-mL-mR, plotH=H-mT-mB, yTop=mT, yBot=mT+plotH;
@@ -1506,7 +1487,7 @@ function parallelCoordsSVG(lojas, axes){
     svg+=`<line x1="${x}" y1="${yTop}" x2="${x}" y2="${yBot}" stroke="rgba(255,255,255,0.16)"/>`;
     svg+=`<text x="${x}" y="${yBot+16}" text-anchor="middle" font-size="9.5" fill="var(--tx2)">${esc(a.lb)}</text>`; });
   cols.forEach((l,si)=>{ const c=PC_PAL[si%PC_PAL.length];
-    const pts=used.map((a,i)=>(l[a.k]!=null&&!isNaN(l[a.k]))?{x:ax(i),y:Y(good(a,l[a.k])),a,v:l[a.k]}:null).filter(Boolean);
+    const pts=used.map((a,i)=>{ const x=gv(a,l); return x!=null?{x:ax(i),y:Y(good(a,x)),a,v:x}:null; }).filter(Boolean);
     if(pts.length<2) return;
     const path=pts.map((p,j)=>(j?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1)).join(' ');
     svg+=`<path d="${path}" fill="none" stroke="${c}" stroke-width="2" stroke-opacity="0.85"><title>${esc(nomeLoja(l))}</title></path>`;
@@ -1517,24 +1498,6 @@ function parallelCoordsSVG(lojas, axes){
 }
 
 /* ---------- Render: Benchmark e achados ---------- */
-/* heatmap das alavancas PEF (Resumo de Performance) por loja: penetrações + meta + ano anterior */
-function perfMatrizHTML(lojas){
-  const cols = lojas;
-  if (!cols.some(l=>l.perf)) return '';
-  const lvlRows = [['penBT','Boleto Turbinado'],['penBP','Boleto Promocional (PRM)'],['penMobshop','Receita Mobshop'],['penB1','Boletos B1'],['resgateFid','Resgate Fidelidade'],['convFluxo','Conversão Ação de Fluxo'],['penFacial','Cuidados Faciais'],['servicos','Serviços em Loja'],['cliqueRetire','Clique & Retire'],['digAtend','Loja Digital — Atend.']];
-  const sgn = f=>(f>0?'+':'')+fmtN(f*100,1);
-  const dCell = (f,goodPos)=> (f==null||Math.abs(f*100)>600) ? '<td><span class="heat">—</span></td>'
-    : `<td><span class="heat num" style="color:${(f>=0)===goodPos?'var(--verde)':'var(--verm)'};font-weight:700">${sgn(f)}%</span></td>`;
-  const valsOf = key => cols.map(l=>l.perf?l.perf[key].v:null);
-  const lvlRow = ([key,lbl])=>`<tr><td class="sku">${lbl}</td>${cols.map(l=>{ const c=l.perf&&l.perf[key]; const vv=c?c.v:null; return `<td>${heatCell(vv==null?'—':perfFmt(key,vv), vv, valsOf(key), true)}</td>`; }).join('')}</tr>`;
-  return `<div class="sec-t" style="margin-top:26px">Alavancas PEF por loja <span class="meta" style="font-weight:400">· penetrações, meta e ano anterior</span></div>
-  <div class="tbl-wrap"><table class="hm"><thead><tr><th class="sku">Indicador</th>${cols.map(l=>`<th title="${esc(nomeLoja(l))}">${esc(lojaCurta(nomeLoja(l)))}</th>`).join('')}</tr></thead><tbody>
-    <tr><td class="sku">Receita vs meta PEF</td>${cols.map(l=>dCell(l.perf?l.perf.receita.vsMeta:null,true)).join('')}</tr>
-    <tr><td class="sku">Receita vs ano ant.</td>${cols.map(l=>dCell(l.perf?l.perf.receita.vsAnt:null,true)).join('')}</tr>
-    ${lvlRows.map(lvlRow).join('')}
-  </tbody></table></div>
-  <p class="note">Penetrações coloridas por <b>posição relativa na rede</b> (verde = melhor) e em pontos percentuais; "Receita vs meta/ano" coloridas por sinal (verde = acima). Serviços em Loja é contagem. Fonte: Resumo de Performance (Receita GMV).</p>`;
-}
 
 function renderEstrategias(lojas, canal, findings){
   const v = $('#view-estrategias');
@@ -1547,8 +1510,10 @@ function renderEstrategias(lojas, canal, findings){
   v.innerHTML = `
     <div class="sec-t">Perfil das lojas <span class="meta" style="font-weight:400">· cada linha é uma loja · cima = melhor · eixos normalizados</span></div>
     ${parallelCoordsSVG(lojas, [{k:'gmvMes',lb:'GMV/mês',dir:'up',fmt:v=>kBRL(v)},{k:'boletosDia',lb:'Cupons/dia',dir:'up',fmt:v=>fmtN(v,1)},{k:'ticket',lb:'Ticket',dir:'up',fmt:v=>fmtBRL(v,0)},{k:'itensBoleto',lb:'Itens/cupom',dir:'up',fmt:v=>fmtN(v,2)},{k:'fidPct',lb:'Fidelidade',dir:'up',fmt:v=>fmtPct(v,0)},{k:'descEtiqPct',lb:'Desconto',dir:'down',fmt:v=>fmtPct(v,0)},{k:'margem',lb:'Margem',dir:'up',fmt:v=>fmtPct(v,0)},{k:'recorrPct',lb:'Recorrência',dir:'up',fmt:v=>fmtPct(v,0)}])}
-    <p class="note"><b>Como ler:</b> cada loja é uma linha; quanto mais <b>alto</b> em cada eixo, <b>melhor</b> (desconto invertido: linha alta = desconto baixo). Linhas que se cruzam = perfis opostos; uma linha consistentemente alta = loja forte em tudo. Passe o mouse para os valores. Logo abaixo, as penetrações PEF com meta e ano anterior.</p>
-    ${perfMatrizHTML(lojas)}
+    <p class="note"><b>Como ler:</b> cada loja é uma linha; quanto mais <b>alto</b> em cada eixo, <b>melhor</b> (desconto invertido: linha alta = desconto baixo). Linhas que se cruzam = perfis opostos; uma linha consistentemente alta = loja forte em tudo. Passe o mouse para os valores.</p>
+    <div class="sec-t" style="margin-top:24px">Alavancas PEF por loja <span class="meta" style="font-weight:400">· penetrações de campanha · cima = melhor</span></div>
+    ${parallelCoordsSVG(lojas, [['penBT','Bol. Turbinado'],['penBP','PRM'],['penMobshop','Mobshop'],['penB1','Boletos B1'],['resgateFid','Resgate Fidel.'],['convFluxo','Conv. Fluxo'],['penFacial','Cuid. Faciais']].map(([k,lb])=>({k,lb,dir:'up',get:l=>l.perf&&l.perf[k]?l.perf[k].v:null,fmt:v=>fmtPct(v,1)})))}
+    <p class="note">Alavancas de campanha (Boleto Turbinado, PRM, Mobshop, Boletos B1, Resgate de Fidelidade, Conversão de Ação de Fluxo, Cuidados Faciais) — linha alta = loja forte na alavanca. Meta e ano anterior por loja estão na aba <b>Lojas</b> (scorecard PEF). Fonte: Resumo de Performance.</p>
     <div class="strat-top">
       <div class="sec-t" style="margin:0">Achados${filtro==='all'?` · ${findings.length}`:''}</div>
       <select class="sel" id="fStrat">

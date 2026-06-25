@@ -438,3 +438,12 @@ O usuário escolheu **parallel coordinates** (entre 3 opções) para deixar a ab
 Mostra o "formato" de cada loja e o espelho Coruripe↔Palmeira visualmente. **Validação:** `node --check` OK; jsdom — 4 abas, parallel coords (6 linhas/8 eixos) + heatmap PEF + achados, `#fStrat` ok, rename/XSS escapado, **0 refs órfãs**, **zero erros de console**.
 
 > **Estado visual da app (24/06/2026):** 4 abas, todas com visual SVG próprio — Diagnóstico (pills + bubble de gargalos), Tendência (cascata/tornado/slopegraph/lollipop + funil), Lojas (raio-X vs rede + bullets PEF + donut/ABC), Benchmark (parallel coordinates + heatmap PEF + achados-régua).
+
+## 32. Benchmark — alavancas PEF viram 2º parallel coords + achados em galeria (24/06/2026)
+
+O usuário gostou do gráfico de linhas mas apontou que faltou mexer em "Alavancas PEF por loja" e "Achados".
+- **Alavancas PEF → 2º parallel coordinates** (penetrações de campanha: BT, PRM, Mobshop, B1, Resgate Fid., Conv. Fluxo, Cuidados Faciais), todas `dir:'up'`. `parallelCoordsSVG` ganhou acessor `a.get` (lê `l.perf[k].v`). Mesmas cores de loja (`PC_PAL`) do 1º gráfico → dá pra rastrear a mesma loja nos dois. **Substitui** o heatmap `perfMatrizHTML` (removido). Meta/ano por loja ficam no scorecard PEF da aba Lojas.
+- **Achados → galeria:** `.strats` virou grid multi-coluna (`repeat(auto-fill,minmax(340px,1fr))`); cards lado a lado (já tinham borda por severidade + badge + R$ ouro + régua).
+- **Limpeza:** removidos `perfMatrizHTML`, `heatCell`, `heat()` e CSS `.hm`/`.heat` (sem mais uso).
+
+**Validação:** `node --check` OK; jsdom — 4 abas, **2 parallel coords** na Benchmark (perfil + alavancas) + 28 achados em galeria, `#fStrat` ok, rename/XSS escapado, **0 refs órfãs**, **zero erros de console**.
