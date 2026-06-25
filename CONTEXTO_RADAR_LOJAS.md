@@ -418,3 +418,12 @@ O usuário pediu a aba Tendência mais visual e **explicitamente não-bubble** (
 - **Limpeza:** removidos os helpers/row-builders órfãos (`ebar`/`mx`/`cR`/`sgnR`/`sgnPP`/`recYoY`-local/`funilRows`/`fluxRows`) e o CSS `.ebar*`.
 
 Cada gráfico mantém uma leitura curta em cima. **Validação:** `node --check` OK; jsdom — 4 abas, **5 SVGs na Tendência** (cascata, tornado, slopegraph, 2 lollipops) + funil do canal, rename/XSS escapado, **0 refs órfãs**, **zero erros de console**.
+
+## 30. Lojas mais visual — raio-X vs rede + scorecard PEF em bullet (24/06/2026)
+
+O usuário escolheu **1 + 2** de três opções. Helpers novos (SVG): `perfilRedeSVG`, `pefBulletSVG`.
+- **1 · Raio-X vs rede** (no card, sempre visível): cada KPI (`PERFIL` = cupons/dia, ticket, itens/cupom, fidelidade, desconto, recorrência, margem) numa faixa **min↔max das lojas** (`redeStats` calculado 1× sobre `lojas`), **● = esta loja**, **┃ = mediana**, cor pela posição (dir up/down). Fingerprint comparativo por loja, **adicionado abaixo do kgrid** (kgrid + réguas mantidos).
+- **2 · Scorecard PEF em bullet bars** (no expand, substitui a tabela de 15 linhas do `perfPanel`): barra = atual; **┃ ouro = meta** (reconstruída por `v/(1+vsMeta)` p/ receita/cupons/ticket); penetrações = nível 0–100%; **cor da barra = vs ano** (verde melhorou / vermelho piorou); deltas "m"=meta, "a"=ano ao lado.
+- **Limpeza:** removidos `dChip`/`sgnL`/`yoUnit` (só a tabela PEF antiga usava). As únicas tabelas restantes em Lojas são os top-10 SKUs (opção 3, não pedida).
+
+**Validação:** `node --check` OK; jsdom — 4 abas, **6 raio-X nos cards + 6 bullets PEF nos expands**, rename/XSS escapado, **0 refs órfãs**, **zero erros de console**.

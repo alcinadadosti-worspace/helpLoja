@@ -1380,29 +1380,56 @@ function renderTendencia(lojas, canal){
   v.innerHTML = b1 + b2 + b3;
 }
 
+/* Raio-X da loja vs rede: cada KPI numa faixa min↔max das lojas, ● = esta loja, ┃ = mediana */
+function perfilRedeSVG(l, redeStats, specs){
+  const rows = specs.filter(s=>l[s.k]!=null && !isNaN(l[s.k]) && redeStats[s.k]);
+  if(!rows.length) return '';
+  const rowH=23,mL=94,mR=54,mT=4,W=380,H=mT+rows.length*rowH+4,x0=mL,x1=W-mR,tw=x1-x0;
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:430px" role="img" aria-label="Perfil da loja vs rede">`;
+  rows.forEach((s,i)=>{ const st=redeStats[s.k],y=mT+i*rowH+rowH/2,val=l[s.k],rng=st.max-st.min;
+    const pos=rng>0?clamp((val-st.min)/rng,0,1):0.5, mpos=rng>0?clamp((st.med-st.min)/rng,0,1):0.5;
+    const good=s.dir==='down'?1-pos:pos, c=good>=0.6?'#34C77B':good>=0.34?'#E8B84B':'#E16358';
+    svg+=`<text x="${mL-8}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--tx2)">${esc(s.lb)}</text>`;
+    svg+=`<line x1="${x0}" y1="${y.toFixed(1)}" x2="${x1}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.13)" stroke-width="3" stroke-linecap="round"/>`;
+    const mx=x0+mpos*tw; svg+=`<line x1="${mx.toFixed(1)}" y1="${(y-5).toFixed(1)}" x2="${mx.toFixed(1)}" y2="${(y+5).toFixed(1)}" stroke="var(--tx3)" stroke-width="1.5"/>`;
+    const dx=x0+pos*tw; svg+=`<circle cx="${dx.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="${c}" stroke="var(--bg2)" stroke-width="1.5"/>`;
+    svg+=`<text x="${x1+6}" y="${(y+3).toFixed(1)}" font-size="10" font-weight="700" fill="${c}">${esc(s.fmt(val))}</text>`;
+  });
+  return svg+`</svg>`;
+}
+/* Scorecard PEF em bullet bars: barra = atual · ┃ ouro = meta · cor da barra = vs ano anterior */
+function pefBulletSVG(p, keys){
+  const rows = keys.map(k=>(p[k]&&p[k].v!=null)?{k,c:p[k]}:null).filter(Boolean);
+  if(!rows.length) return '';
+  const rowH=25,mL=128,barX0=mL+6,barX1=452,mT=6,W=720,H=mT+rows.length*rowH+4, sg=f=>(f>0?'+':'')+fmtN(f*100,1);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:720px" role="img" aria-label="Performance PEF por indicador">`;
+  rows.forEach((r,i)=>{ const {k,c}=r,y=mT+i*rowH+rowH/2,pp=PERF_SCALE[k]==='pct',good=PERF_DIR[k]!=='down',bw=barX1-barX0;
+    svg+=`<text x="${mL-8}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="10.5" fill="var(--tx2)">${esc(PERF_LABEL[k])}</text>`;
+    let ff=null,mf=null,fc='#5a6b62';
+    if(c.vsMeta!=null){ const meta=c.v/(1+c.vsMeta),ref=(Math.max(c.v,meta)*1.18)||1; ff=c.v/ref; mf=meta/ref; fc=(c.vsMeta>=0)===good?'#34C77B':'#E16358'; }
+    else if(pp){ ff=clamp(c.v/100,0,1); fc=c.vsAnt==null?'#7d8c83':((c.vsAnt>=0)===good?'#34C77B':'#E16358'); }
+    if(ff!=null){ svg+=`<rect x="${barX0}" y="${(y-6).toFixed(1)}" width="${bw}" height="12" rx="2" fill="rgba(255,255,255,0.05)"/>`;
+      svg+=`<rect x="${barX0}" y="${(y-6).toFixed(1)}" width="${(bw*clamp(ff,0,1)).toFixed(1)}" height="12" rx="2" fill="${fc}" fill-opacity="0.72"/>`;
+      if(mf!=null){ const mx=barX0+bw*clamp(mf,0,1); svg+=`<line x1="${mx.toFixed(1)}" y1="${(y-9).toFixed(1)}" x2="${mx.toFixed(1)}" y2="${(y+9).toFixed(1)}" stroke="var(--ouro2)" stroke-width="2"/>`; } }
+    const vx=barX1+12; svg+=`<text x="${vx}" y="${(y+3.5).toFixed(1)}" font-size="10.5" font-weight="700" fill="var(--tx)">${esc(perfFmt(k,c.v))}</text>`;
+    let dx=vx+62; const ds=[]; if(c.vsMeta!=null) ds.push(['m '+sg(c.vsMeta)+(pp?'pp':'%'),(c.vsMeta>=0)===good]); if(c.vsAnt!=null) ds.push(['a '+sg(c.vsAnt)+(pp?'pp':'%'),(c.vsAnt>=0)===good]);
+    ds.forEach(([t,g])=>{ svg+=`<text x="${dx}" y="${(y+3.5).toFixed(1)}" font-size="9" fill="${g?'#8fe0b4':'#e89a93'}">${esc(t)}</text>`; dx+=64; });
+  });
+  return svg+`</svg>`;
+}
+
 /* ---------- Render: Lojas ---------- */
 function renderLojas(lojas){
   const v = $('#view-lojas');
   if (!lojas.length){ v.innerHTML = `<div class="empty"><b>Nenhuma loja carregada ainda.</b></div>`; return; }
   // Painel PEF por loja (Resumo de Performance): vs meta + vs ano anterior.
-  // Deltas do PDV são frações; ×100 = % (monetário/volume) ou pp (penetração).
-  const sgnL = f => (f>0?'+':'') + fmtN(f*100, Math.abs(f*100)>=10?1:1);
-  const yoUnit = key => PERF_SCALE[key]==='pct' ? 'pp' : '%';
-  const dChip = (f, key, goodPos) => f==null||Math.abs(f*100)>600 ? '<span class="meta">—</span>'
-    : `<b style="color:${(f>=0)===goodPos?'var(--verde)':'var(--verm)'}">${sgnL(f)}${yoUnit(key)}</b>`;
-  const SHOW_PERF = ['receita','boletos','ticket','penBT','penBP','penMobshop','penB1','resgateFid','convFluxo','penFacial','idCliente','servicos','cliqueRetire','digAtend','tmeResp'];
-  const perfPanel = p => {
-    if (!p) return '';
-    const rows = SHOW_PERF.map(key=>{ const c=p[key]; if(!c||c.v==null) return '';
-      const goodPos = PERF_DIR[key]!=='down';
-      const meta = c.vsMeta!=null ? dChip(c.vsMeta,key,goodPos) : '<span class="meta">—</span>';
-      const yo   = c.vsAnt!=null  ? dChip(c.vsAnt,key,goodPos)  : '<span class="meta">—</span>';
-      return `<tr><td>${PERF_LABEL[key]}</td><td class="num">${perfFmt(key,c.v)}</td><td class="num">${meta}</td><td class="num">${yo}</td></tr>`;
-    }).join('');
-    return `<div class="mini-t" style="margin:13px 0 6px">Performance PEF <span class="meta">· meta e mesmo período do ano anterior</span></div>
-      <table class="sku-tbl"><thead><tr><th>Indicador</th><th class="num">Atual</th><th class="num">vs meta</th><th class="num">vs ano ant.</th></tr></thead><tbody>${rows}</tbody></table>
-      <p class="note">Penetrações em <b>pp</b> (pontos percentuais); receita/cupons/ticket em <b>%</b>. Fonte: Resumo de Performance (Receita GMV). "—" = sem meta/base no sistema.</p>`;
-  };
+  const SHOW_PERF =['receita','boletos','ticket','penBT','penBP','penMobshop','penB1','resgateFid','convFluxo','penFacial','idCliente','servicos','cliqueRetire','digAtend','tmeResp'];
+  const perfPanel = p => p ? `<div class="mini-t" style="margin:13px 0 6px">Performance PEF <span class="meta" style="font-weight:400">· barra = atual · <span style="color:var(--ouro2)">┃</span> meta · cor = vs ano anterior</span></div>${pefBulletSVG(p, SHOW_PERF)}
+      <p class="note">Receita/cupons/ticket: a barra é o realizado e o <span style="color:var(--ouro2)">┃</span> é a meta; penetrações = nível (0–100%). Cor da barra = melhorou (verde)/piorou (vermelho) vs ano passado. "m" = vs meta · "a" = vs ano (pp p/ penetração, % p/ monetário).</p>` : '';
+  // Raio-X vs rede: faixa de cada KPI entre as lojas (mesma p/ todos os cards)
+  const PERFIL = [{k:'boletosDia',lb:'Cupons/dia',dir:'up',fmt:v=>fmtN(v,1)},{k:'ticket',lb:'Ticket',dir:'up',fmt:v=>fmtBRL(v,0)},{k:'itensBoleto',lb:'Itens/cupom',dir:'up',fmt:v=>fmtN(v,2)},{k:'fidPct',lb:'Fidelidade',dir:'up',fmt:v=>fmtPct(v,0)},{k:'descEtiqPct',lb:'Desconto',dir:'down',fmt:v=>fmtPct(v,0)},{k:'recorrPct',lb:'Recorrência',dir:'up',fmt:v=>fmtPct(v,0)},{k:'margem',lb:'Margem',dir:'up',fmt:v=>fmtPct(v,0)}];
+  const med1=a=>{ const n=a.length; return n%2?a[(n-1)/2]:(a[n/2-1]+a[n/2])/2; };
+  const redeStats={}; PERFIL.forEach(s=>{ const vals=lojas.map(l=>l[s.k]).filter(x=>x!=null&&!isNaN(x)).sort((a,b)=>a-b); if(vals.length) redeStats[s.k]={min:vals[0],max:vals[vals.length-1],med:med1(vals)}; });
   v.innerHTML = `<div class="stores">` + lojas.map(l => {
     const s = (state.efetivas && state.efetivas.get(l.codigo)) || state.stores.get(l.codigo);
     const kg = (lb, val, rg='') => `<div class="kg"><div class="lb">${lb}</div><div class="v num">${val}</div>${rg}</div>`;
@@ -1462,7 +1489,7 @@ function renderLojas(lojas){
         ${kg('Trocas', `<span class="${cls(SPEC.trocas,l.trocasPct)}">${fmtPct(l.trocasPct)}</span>`, regua(l.trocasPct, SPEC.trocas))}
         ${kg('Recorrência (make·skin·cap)', `<span class="${cls(SPEC.recorr,l.recorrPct)}">${fmtPct(l.recorrPct)}</span>`, regua(l.recorrPct, SPEC.recorr))}
         ${kg('Cartão presente', l.recarga===0?'<span class="c-bad">R$ 0</span>':fmtBRL(l.recarga))}
-      </div></div>
+      </div>${PERFIL.some(s=>l[s.k]!=null && redeStats[s.k])?`<div class="mini-t" style="margin:12px 0 3px">Perfil vs rede <span class="meta" style="font-weight:400">· ● esta loja · ┃ mediana · faixa = as lojas</span></div>${perfilRedeSVG(l, redeStats, PERFIL)}`:''}</div>
       <button class="expand" data-expand="${l.codigo}">ver desempenho PEF, mix e curva ABC ▾</button>
       <div class="detail" id="det-${l.codigo}">${perfPanel(l.perf)}${det}</div>
     </article>`;
