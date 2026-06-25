@@ -1249,6 +1249,23 @@ function renderCanal(lojas, canal, findings){
       <p><span class="tag warn">por que (provável)</span>Não é margem (saudável), nem mix (cesta estável), nem desconto — <b>quem entra compra bem</b>. A queda é <b>larga</b> (${rangeFrag}), o que aponta <b>causa sistêmica</b> (consumo, concorrência ou menos ação de atração) — não execução de uma loja só.${convFrag}${metaFrag}</p>
       <p><span class="tag ok">o caminho</span>Recuperar fluxo está medido e é desigual entre as lojas: <b>serviços em loja</b>, <b>resgate de fidelidade</b> (${resgFrag}) e <b>conversão de ação de fluxo</b> — o detalhe e o por-loja estão na aba <b>Tendência</b>. Defender o faturamento subindo preço, com o fluxo caindo, é espiral: a defesa é <b>tráfego</b>.</p>`;
   }
+  // ----- F: dinheiro na mesa (caixa preso no estoque + vendas a recuperar) -----
+  let mesaBand='';
+  const er = state.estoque ? analisarEstoque(lojas) : null;
+  if (er && er.T.parado>0){
+    const k=(lb,val,hint)=>`<div class="pill"><div class="lb">${lb}</div><div class="v num" style="color:var(--ouro2)">${val}</div>${hint?`<div class="hint">${hint}</div>`:''}</div>`;
+    let gapAno=null;
+    if (cp && cp.receita.vsAnt!=null && cp.receita.vsAnt<0){ const recY=cp.receita.vsAnt/100; let dP=null;
+      if (pm && pm.periodoAtual){ const mm=String(pm.periodoAtual).split(/\s*[-–]\s*/); if(mm.length===2){ try{ dP=Math.round((dtBR(mm[1].trim())-dtBR(mm[0].trim()))/864e5)+1; }catch(_){} } }
+      const perfAno=(dP&&dP>30)?cp.receita.real*365/dP:cp.receita.real*(12/(canal.meses||5.6));
+      gapAno=perfAno*(-recY/(1+recY)); }
+    mesaBand = `<div class="sec-t" style="margin-top:20px">Dinheiro na mesa <span class="meta" style="font-weight:400">· dois levers diferentes</span></div>
+      <div class="kpis">
+        ${k('Caixa preso no estoque', fmtBRL(er.T.parado,0), 'excesso + encalhe a liberar · aba Estoque')}
+        ${gapAno!=null?k('Vendas a recuperar / ano', fmtBRL(gapAno,0), 'voltar ao ano passado · recuperar tráfego'):''}
+      </div>
+      <p class="note">Dois movimentos distintos: <b>liberar caixa agora</b> (parar de comprar excesso + liquidar encalhe) e <b>recuperar tráfego</b> (crescer vendas). O estoque parado é, em boa parte, a pegada financeira da própria queda de fluxo.</p>`;
+  }
   v.innerHTML = `
     ${cp?`<div class="sec-t" style="margin-bottom:8px">Tendência vs ano passado e meta PEF <span class="meta" style="font-weight:400">· ${pm&&pm.periodoAtual?esc(pm.periodoAtual):''} vs ${pm&&pm.periodoAnterior?esc(pm.periodoAnterior):'ano anterior'} · fonte: Resumo de Performance</span></div>${yoyBand}`:''}
     <div class="kpis">
@@ -1264,6 +1281,7 @@ function renderCanal(lojas, canal, findings){
     <div class="narr">
       ${tendPara || `<p class="an-lead">O canal faz <b>${fmtBRL(canal.gmvMes)}/mês</b> em ${fmtN(canal.n)} lojas. Carregue o Resumo de Performance para a leitura de tendência (meta e ano anterior).</p>`}
     </div>
+    ${mesaBand}
     <div class="sec-t">Gargalo nº 1 de cada loja <span class="meta" style="font-weight:400">· tamanho × oportunidade × tipo</span></div>
     ${gargaloBubbleHTML(lojas, findings)}`;
 }
@@ -1540,47 +1558,51 @@ function parallelCoordsSVG(lojas, axes){
   return `<div style="margin:6px 0 2px">${svg}</div><div style="font-size:11.5px;color:var(--tx2);margin-top:2px">${leg}</div>`;
 }
 
-/* ---------- Render: Estoque (cobertura projetada × vendas) ---------- */
-function renderEstoque(lojas){
-  const v=$('#view-estoque');
-  const E=state.estoque;
-  if(!E||!E.rows||!E.rows.length){ v.innerHTML=`<div class="empty"><b>A aba Estoque precisa da "Consulta de Estoque".</b><br><span class="meta">Arraste a planilha de estoque (abas BOT/QDB/EUD, com SKU, PDV e cobertura projetada). Ela mostra o que comprar, o excesso/dinheiro parado (valorizado pelas vendas), transferências entre lojas e encalhe.</span></div>`; return; }
+/* Análise de estoque (cobertura × vendas): perStore, parado, comprar, transferências, parado por categoria/marca, auditoria DDV×giro. Ignora "Suporte à Venda" (material, não produto). */
+function analisarEstoque(lojas){
+  const E=state.estoque; if(!E||!E.rows||!E.rows.length) return null;
   const {custo,preco}=custoPorSKU(lojas);
-  const nm={}; lojas.forEach(l=>nm[l.codigo]=nomeLoja(l)); const LN=p=>nm[String(p)]||CONFIG.nomesLojas[String(p)]||('Loja '+p);
-  const gmv={}; lojas.forEach(l=>gmv[String(l.codigo)]=l.gmvMes||0);
+  let dias=169; for(const l of lojas){ const s=(state.efetivas&&state.efetivas.get(l.codigo))||state.stores.get(l.codigo); if(s&&s.abc&&s.abc.dias){dias=s.abc.dias;break;} }
+  const abcQ={}; for(const l of lojas){ const s=(state.efetivas&&state.efetivas.get(l.codigo))||state.stores.get(l.codigo); if(!s||!s.abc||!s.abc.its)continue; for(const it of s.abc.its) abcQ[it.sku+'@'+l.codigo]=(abcQ[it.sku+'@'+l.codigo]||0)+it.qtd; }
   const PDVS=[...new Set(E.rows.map(r=>String(r[1])))];
   const S={}; PDVS.forEach(p=>S[p]={cap:0,parado:0,enc:0,encN:0,comprarN:0,urg:0,comprarR:0,excN:0,saudN:0,unid:0});
-  const bySku={}, compra=[], encalhe=[], classCob={};
-  for(const [sku,pdvN,est,tr,pe,sg,ddv,alvo,cob] of E.rows){
-    const pdv=String(pdvN), s=S[pdv]; if(!s) continue; const cu=custo[sku]; const inf=E.skus[sku]||['','',''];
-    s.unid+=est; if(cu!=null) s.cap+=est*cu;
-    let paradoUn=0; if(ddv>0){ if(cob!=null&&cob>alvo) paradoUn=Math.max(0,est-alvo*ddv); } else if(est>0) paradoUn=est;
-    if(cu!=null) s.parado+=paradoUn*cu;
-    const dead=(cob!=null&&cob>180)||(ddv<=0&&est>0);
-    if(dead){ s.encN++; const val=cu!=null?est*cu:null; if(cu!=null)s.enc+=val; encalhe.push({sku,pdv,est,cob,nome:inf[0],cls:inf[2],val}); }
-    if(alvo&&ddv>0&&cob!=null){
-      if(cob<alvo){ s.comprarN++; if(cob<alvo*0.5)s.urg++; const falta=Math.max(0,(alvo-cob)*ddv); if(cu!=null)s.comprarR+=falta*cu;
-        compra.push({sku,pdv,est,cob,alvo,gap:alvo-cob,faltaUn:falta,nome:inf[0],cls:inf[2],val:cu!=null?falta*cu:null,urg:cob<alvo*0.5}); }
-      else if(cob>alvo*2) s.excN++; else if(cob<=alvo*1.5) s.saudN++;
-    }
-    if(inf[2]&&cob!=null&&ddv>0){ (classCob[inf[2]]=classCob[inf[2]]||{}); (classCob[inf[2]][pdv]=classCob[inf[2]][pdv]||[]).push(cob); }
-    (bySku[sku]=bySku[sku]||{})[pdv]={est,cob,alvo,ddv,sg,cu};
+  const bySku={}, compra=[], encalhe=[], paradoCat={}, paradoMarca={}, escondida=[], classCob={}; const ddvAud={under:0,over:0,ok:0};
+  const isSup=c=>norm(c).includes('suporte');
+  for(const row of E.rows){ const sku=row[0],pdvN=row[1],est=row[2],tr=row[3],pe=row[4],sg=row[5],ddvP=row[6],alvo=row[7],cob=row[8];
+    const inf=E.skus[sku]||['','','','']; if(isSup(inf[1])) continue; const pdv=String(pdvN), s=S[pdv]; if(!s) continue; const c=custo[sku];
+    s.unid+=est; if(c!=null) s.cap+=est*c;
+    let paradoUn=0; if(ddvP>0){ if(cob!=null&&cob>alvo) paradoUn=Math.max(0,est-alvo*ddvP); } else if(est>0) paradoUn=est;
+    if(c!=null) s.parado+=paradoUn*c;
+    if(c!=null&&paradoUn>0){ paradoCat[inf[1]||'?']=(paradoCat[inf[1]||'?']||0)+paradoUn*c; const mk=marcaDe(inf[0]); paradoMarca[mk]=(paradoMarca[mk]||0)+paradoUn*c; }
+    const dead=(cob!=null&&cob>180)||(ddvP<=0&&est>0);
+    if(dead){ s.encN++; const val=c!=null?est*c:null; if(c!=null)s.enc+=val; encalhe.push({sku,pdv,est,cob,nome:inf[0],cls:inf[2],val}); }
+    if(alvo&&ddvP>0&&cob!=null){ if(cob<alvo){ s.comprarN++; if(cob<alvo*0.5)s.urg++; const falta=Math.max(0,(alvo-cob)*ddvP); if(c!=null)s.comprarR+=falta*c; compra.push({sku,pdv,est,cob,alvo,faltaUn:falta,nome:inf[0],cls:inf[2],val:c!=null?falta*c:null,urg:cob<alvo*0.5}); } else if(cob>alvo*2) s.excN++; else if(cob<=alvo*1.5) s.saudN++; }
+    if(inf[2]&&cob!=null&&ddvP>0){ (classCob[inf[2]]=classCob[inf[2]]||{}); (classCob[inf[2]][pdv]=classCob[inf[2]][pdv]||[]).push(cob); }
+    const aq=abcQ[sku+'@'+pdv]; if(aq>0 && ddvP!=null){ const real=aq/dias;
+      if(ddvP<real*0.5) ddvAud.under++; else if(ddvP>real*2) ddvAud.over++; else ddvAud.ok++;
+      // ruptura escondida: pelo giro REAL a cobertura está abaixo do alvo, mas o número do sistema (que usa o DDV baixo) parece ok
+      if(real>0 && ddvP>0){ const trueCob=est/real, sysCob=est/ddvP, al=alvo||60;
+        if(real>ddvP*1.5 && trueCob<al && sysCob>=al*0.8) escondida.push({sku,pdv,nome:inf[0],cls:inf[2],trueCob,sysCob,ratio:real/ddvP,fatMes:(preco[sku]||0)*real*30.44}); } }
+    (bySku[sku]=bySku[sku]||{})[pdv]={est,cob,alvo,ddv:ddvP,sg,cu:c};
   }
-  // transferências: mesmo SKU com sobra numa loja e falta noutra
-  const transf=[];
-  for(const sku in bySku){ const st=bySku[sku]; let excUn=0,defUn=0; const from=[],to=[]; let cu=null;
-    for(const pdv in st){ const x=st[pdv]; if(x.cu!=null)cu=x.cu; if(x.alvo&&x.ddv>0&&x.cob!=null){
-      if(x.cob>x.alvo*2&&x.est>(x.sg||0)){ const u=Math.max(0,x.est-x.alvo*x.ddv); if(u>0){excUn+=u;from.push(pdv);} }
-      if(x.cob<x.alvo){ const u=Math.max(0,(x.alvo-x.cob)*x.ddv); if(u>0){defUn+=u;to.push(pdv);} } } }
-    const un=Math.min(excUn,defUn); if(un>=1&&from.length&&to.length){ const inf=E.skus[sku]||['']; transf.push({sku,nome:inf[0],un,val:cu!=null?un*cu:null,from,to}); }
-  }
+  const transf=[]; for(const sku in bySku){ const st=bySku[sku]; let exU=0,deU=0; const from=[],to=[]; let c=null;
+    for(const pdv in st){ const x=st[pdv]; if(x.cu!=null)c=x.cu; if(x.alvo&&x.ddv>0&&x.cob!=null){ if(x.cob>x.alvo*2&&x.est>(x.sg||0)){const u=Math.max(0,x.est-x.alvo*x.ddv);if(u>0){exU+=u;from.push(pdv);}} if(x.cob<x.alvo){const u=Math.max(0,(x.alvo-x.cob)*x.ddv);if(u>0){deU+=u;to.push(pdv);}} } }
+    const un=Math.min(exU,deU); if(un>=1&&from.length&&to.length) transf.push({sku,nome:(E.skus[sku]||[''])[0],un,val:c!=null?un*c:null,from,to}); }
   transf.sort((a,b)=>(b.val||0)-(a.val||0));
-  // totais
-  const T={cap:0,parado:0,enc:0,encN:0,comprarN:0,urg:0,comprarR:0}; PDVS.forEach(p=>{const s=S[p];T.cap+=s.cap;T.parado+=s.parado;T.enc+=s.enc;T.encN+=s.encN;T.comprarN+=s.comprarN;T.urg+=s.urg;T.comprarR+=s.comprarR;});
-  const transfVal=transf.reduce((a,t)=>a+(t.val||0),0);
+  const T={cap:0,parado:0,enc:0,encN:0,comprarN:0,urg:0,comprarR:0}; PDVS.forEach(p=>['cap','parado','enc','encN','comprarN','urg','comprarR'].forEach(k=>T[k]+=S[p][k]));
+  escondida.sort((a,b)=>b.fatMes-a.fatMes);
+  return { S,T,PDVS,compra,encalhe,transf,transfVal:transf.reduce((a,t)=>a+(t.val||0),0),paradoCat,paradoMarca,ddvAud,escondida,classCob,dias };
+}
+
+/* ---------- Render: Estoque (cobertura projetada × vendas) ---------- */
+function renderEstoque(lojas){
+  const v=$('#view-estoque'); const A=analisarEstoque(lojas);
+  if(!A){ v.innerHTML=`<div class="empty"><b>A aba Estoque precisa da "Consulta de Estoque".</b><br><span class="meta">Arraste a planilha de estoque (abas BOT/QDB/EUD, com SKU, PDV e cobertura projetada).</span></div>`; return; }
+  const {S,T,PDVS,compra,encalhe,transf,transfVal,paradoCat,paradoMarca,ddvAud,escondida,classCob}=A;
+  const nm={}; lojas.forEach(l=>nm[l.codigo]=nomeLoja(l)); const LN=p=>nm[String(p)]||CONFIG.nomesLojas[String(p)]||('Loja '+p);
+  const gmv={}; lojas.forEach(l=>gmv[String(l.codigo)]=l.gmvMes||0);
   const br=v=>fmtBRL(v,0); const pillv=(lb,val,hint)=>`<div class="pill"><div class="lb">${lb}</div><div class="v num">${val}</div>${hint?`<div class="hint">${hint}</div>`:''}</div>`;
 
-  /* KPIs */
   const kpis=`<div class="kpis">
     ${pillv('Capital em estoque', br(T.cap), '6 lojas · valor a custo (ABC)')}
     ${pillv('Dinheiro parado', `<span style="color:var(--verm)">${br(T.parado)}</span>`, `${fmtPct(T.cap?T.parado/T.cap*100:0,0)} do capital · excesso + encalhe`)}
@@ -1588,17 +1610,12 @@ function renderEstoque(lojas){
     ${pillv('A comprar', br(T.comprarR), `${fmtN(T.comprarN)} itens (${fmtN(T.urg)} urgentes)`)}
     ${pillv('Transferir, não comprar', br(transfVal), `${fmtN(transf.length)} SKUs sobra→falta na rede`)}
   </div>`;
-  const lead=`<div class="narr"><p><span class="tag bad">o quadro</span>A rede tem <b>${br(T.cap)}</b> em estoque e <b style="color:var(--verm)">${br(T.parado)} parados</b> (${fmtPct(T.cap?T.parado/T.cap*100:0,0)} do capital) — excesso e encalhe. O <b>"a comprar" é só ${br(T.comprarR)}</b>: o problema <b>não é falta, é excesso</b>. E <b>${fmtN(transf.length)} SKUs</b> têm sobra numa loja e falta em outra (${br(transfVal)} em compra evitável remanejando).</p>
-    <p class="note">Valorizado a <b>custo</b> pelo ABC de vendas (75% dos SKUs do estoque têm custo; o resto nunca vendeu — encalhe sem referência de preço). Estoque é a foto de ${esc(E.meta&&E.meta.data||'agora')}.</p></div>`;
+  const lead=`<div class="narr"><p><span class="tag bad">o quadro</span>A rede tem <b>${br(T.cap)}</b> em estoque e <b style="color:var(--verm)">${br(T.parado)} parados</b> (${fmtPct(T.cap?T.parado/T.cap*100:0,0)} do capital) — excesso e encalhe. O <b>"a comprar" é só ${br(T.comprarR)}</b>: o problema <b>não é falta, é excesso</b>. Parte disso é a pegada da queda de tráfego: compraram para o volume que não veio. ${fmtN(transf.length)} SKUs têm sobra numa loja e falta em outra (${br(transfVal)} evitável).</p>
+    <p class="note">Valorizado a <b>custo</b> pelo ABC (75% dos SKUs estocados têm custo; o resto nunca vendeu). "Suporte à Venda" (material, não produto) fica fora. Estoque é a foto de ${esc(state.estoque.meta&&state.estoque.meta.data||'agora')}.</p></div>`;
 
-  /* Cruzamento vendas × estoque (scatter) */
-  const sc=(()=>{
-    const pts=PDVS.map(p=>({p,x:gmv[p]||0,y:S[p].parado,cap:S[p].cap})).filter(p=>p.x>0);
-    if(pts.length<2) return '';
-    const W=720,H=300,mL=64,mR=20,mT=24,mB=46; const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
-    const xMax=Math.max(...xs)*1.12,yMax=Math.max(...ys)*1.15,capMax=Math.max(...pts.map(p=>p.cap),1);
-    const X=x=>mL+x/xMax*(W-mL-mR), Y=y=>H-mB-y/yMax*(H-mT-mB);
-    const kf=v=>'R$'+(v/1000).toFixed(0)+'k';
+  const sc=(()=>{ const pts=PDVS.map(p=>({p,x:gmv[p]||0,y:S[p].parado,cap:S[p].cap})).filter(p=>p.x>0); if(pts.length<2)return'';
+    const W=720,H=300,mL=64,mR=20,mT=24,mB=46; const xMax=Math.max(...pts.map(p=>p.x))*1.12,yMax=Math.max(...pts.map(p=>p.y))*1.15,capMax=Math.max(...pts.map(p=>p.cap),1);
+    const X=x=>mL+x/xMax*(W-mL-mR), Y=y=>H-mB-y/yMax*(H-mT-mB), kf=v=>'R$'+(v/1000).toFixed(0)+'k';
     let s=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:780px" role="img" aria-label="Vendas vs dinheiro parado por loja">`;
     s+=`<rect x="${mL}" y="${mT}" width="${W-mL-mR}" height="${H-mT-mB}" fill="rgba(12,22,18,0.33)" stroke="var(--line)" rx="8"/>`;
     s+=`<text x="${mL+(W-mL-mR)/2}" y="${H-12}" text-anchor="middle" font-size="11" fill="var(--tx2)">vendas — GMV / mês →</text>`;
@@ -1607,50 +1624,63 @@ function renderEstoque(lojas){
     for(const pt of pts){ const cx=X(pt.x),cy=Y(pt.y),r=Math.max(7,Math.min(26,8+Math.sqrt(pt.cap/capMax)*18));
       s+=`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="#E16358" fill-opacity="0.4" stroke="#E16358" stroke-width="1.5"><title>${esc(LN(pt.p))}\nvendas ${br(pt.x)}/mês · parado ${br(pt.y)} · capital ${br(pt.cap)}</title></circle>`;
       s+=`<text x="${cx.toFixed(1)}" y="${(cy-r-5).toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--tx)">${esc(lojaCurta(LN(pt.p)))}</text>`;
-      s+=`<text x="${cx.toFixed(1)}" y="${(cy+r+13).toFixed(1)}" text-anchor="middle" font-size="9" fill="var(--tx2)">${kf(pt.y)}</text>`;
-    }
-    return s+`</svg>`;
-  })();
+      s+=`<text x="${cx.toFixed(1)}" y="${(cy+r+13).toFixed(1)}" text-anchor="middle" font-size="9" fill="var(--tx2)">${kf(pt.y)}</text>`; }
+    return s+`</svg>`; })();
   const b_cross=`<div class="an-sec"><div class="sec-t">Vendas × dinheiro parado <span class="vtag ruim">cruzamento</span></div>
-    <p class="an-lead">Cada bolha é uma loja: <b>quanto vende</b> (eixo x) × <b>quanto tem parado</b> (eixo y); tamanho = capital total em estoque. Lojas no <b>alto-esquerda</b> têm muito dinheiro parado para o que vendem — é onde liberar caixa rende mais.</p>
-    ${sc}<p class="note">Passe o mouse para os valores. Parado = unidades além da cobertura-alvo + itens sem giro, a custo.</p></div>`;
+    <p class="an-lead">Cada bolha é uma loja: <b>quanto vende</b> (x) × <b>quanto tem parado</b> (y); tamanho = capital. No <b>alto-esquerda</b> = muito parado para o que vende.</p>
+    ${sc}<p class="note">Parado = unidades além da cobertura-alvo + itens sem giro, a custo.</p></div>`;
 
-  /* Dinheiro parado por loja (lollipop) */
   const paradoRows=PDVS.map(p=>({p,parado:S[p].parado,pct:S[p].cap?S[p].parado/S[p].cap*100:0})).sort((a,b)=>b.parado-a.parado);
-  const pMax=Math.max(...paradoRows.map(r=>r.parado),1);
   const b_parado=`<div class="an-sec"><div class="sec-t">Dinheiro parado por loja</div>
     ${lollipopSVG(paradoRows.map(r=>({label:lojaCurta(LN(r.p)),value:r.parado,vlabel:br(r.parado),sub:fmtPct(r.pct,0)+' do capital',color:r.pct>=78?'#E16358':r.pct>=70?'#E8B84B':'#34C77B'})))}
-    <p class="note">Valor a custo das unidades em excesso/encalhe. % = fatia do capital de estoque da loja que está parado.</p></div>`;
+    <p class="note">Valor a custo das unidades em excesso/encalhe; % = fatia do capital da loja parado.</p></div>`;
 
-  /* O que comprar (urgente primeiro) */
+  /* A · Onde o dinheiro parado mora */
+  const catRows=Object.entries(paradoCat).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,val])=>({label:k.length>20?k.slice(0,19)+'…':k,value:val,vlabel:br(val),color:'#E16358'}));
+  const mkRows=Object.entries(paradoMarca).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,val])=>({label:k,value:val,vlabel:br(val),color:'#D9B25F'}));
+  const b_onde=`<div class="an-sec"><div class="sec-t">Onde o dinheiro parado mora <span class="vtag ruim">onde frear a compra</span></div>
+    <p class="an-lead">O R$ parado por <b>categoria</b> e por <b>marca</b> — o mapa de onde parar de comprar. Concentração aqui = over-buying ali.</p>
+    <div class="mini-t">Por categoria</div>${lollipopSVG(catRows)}
+    <div class="mini-t" style="margin-top:14px">Por marca</div>${lollipopSVG(mkRows)}
+    <p class="note">Valor a custo das unidades além do alvo/sem giro. Perfumaria costuma concentrar (é a categoria-âncora — comprou-se para o tráfego que caiu).</p></div>`;
+
+  /* B · Confiança da cobertura (DDV × giro real) */
+  const tot=(ddvAud.under+ddvAud.over+ddvAud.ok)||1;
+  const bar=`<div style="display:flex;height:22px;border-radius:5px;overflow:hidden;border:1px solid var(--line);max-width:640px">
+    <div title="subestima a venda (risco)" style="width:${(ddvAud.under/tot*100).toFixed(1)}%;background:#E16358"></div>
+    <div title="ok" style="width:${(ddvAud.ok/tot*100).toFixed(1)}%;background:#34C77B"></div>
+    <div title="superestima a venda" style="width:${(ddvAud.over/tot*100).toFixed(1)}%;background:#E8B84B"></div></div>`;
+  const b_conf=`<div class="an-sec"><div class="sec-t">Confiança da cobertura <span class="vtag medio">previsão × giro real</span></div>
+    <p class="an-lead">A cobertura só vale o quanto a previsão (DDV) acerta. Vs o giro real do ABC: <b style="color:var(--verm)">${fmtN(ddvAud.under)} itens o sistema subestima</b> (vendem mais que o previsto → vão acabar antes do que a cobertura diz = <b>ruptura escondida</b>), ${fmtN(ddvAud.over)} superestima (excesso falso), ${fmtN(ddvAud.ok)} ok.</p>
+    ${bar}<div style="font-size:11px;color:var(--tx2);margin-top:5px"><span style="color:#E16358">■</span> subestima (risco) · <span style="color:#34C77B">■</span> ok · <span style="color:#E8B84B">■</span> superestima</div>
+    <div class="mini-t" style="margin-top:14px">Ruptura escondida — vende muito mais que o previsto, cobertura parece ok</div>
+    <table class="sku-tbl"><thead><tr><th>Item</th><th>Loja</th><th class="num">Cobertura real (sistema)</th><th class="num">Giro ×</th><th class="num">Venda/mês</th></tr></thead><tbody>
+    ${escondida.slice(0,10).map(e=>`<tr><td><div class="pnome">${esc(e.nome)}</div></td><td>${esc(lojaCurta(LN(e.pdv)))}</td><td class="num"><b style="color:var(--verm)">${fmtN(e.trueCob,0)}d</b> <span class="meta">(${fmtN(e.sysCob,0)}d)</span></td><td class="num">${fmtN(e.ratio,1)}×</td><td class="num">${br(e.fatMes)}</td></tr>`).join('')}
+    </tbody></table><p class="note"><b>Cobertura real</b> = estoque ÷ giro real do ABC; entre parênteses o número do sistema (que usa o DDV baixo). "Giro ×" = quantas vezes a venda real supera o previsto. Repor antes do que o oficial sugere.</p></div>`;
+
   compra.sort((a,b)=>(b.urg-a.urg)||(a.cob-b.cob));
   const clsW={A:0,B:1,C:2,E:3};
   const compraTop=compra.slice().sort((a,b)=>(b.urg-a.urg)||((clsW[a.cls]??9)-(clsW[b.cls]??9))||(a.cob-b.cob)).slice(0,12);
   const b_comprar=`<div class="an-sec"><div class="sec-t">O que comprar — prioridade <span class="vtag ruim">${fmtN(T.comprarN)} itens · ${fmtN(T.urg)} urgentes</span></div>
-    <p class="an-lead">Itens abaixo da cobertura-alvo (risco de ruptura = venda perdida). <b>Urgente</b> = menos da metade da meta. Ordenado por urgência e classe ABC.</p>
+    <p class="an-lead">Itens abaixo do alvo (risco de ruptura = venda perdida). <b>Urgente</b> = menos da metade da meta. Ordenado por urgência e classe ABC.</p>
     <table class="sku-tbl"><thead><tr><th>Item</th><th>Loja</th><th class="num">Classe</th><th class="num">Cobertura</th><th class="num">Faltam</th></tr></thead><tbody>
     ${compraTop.map(c=>`<tr><td><div class="pnome">${esc(c.nome)}</div></td><td>${esc(lojaCurta(LN(c.pdv)))}</td><td class="num">${esc(c.cls||'')}</td><td class="num"><b style="color:${c.urg?'var(--verm)':'var(--ambar)'}">${fmtN(c.cob,0)}</b> / ${fmtN(c.alvo,0)}d</td><td class="num">${Math.ceil(c.faltaUn)} un${c.val!=null?` · ${br(c.val)}`:''}</td></tr>`).join('')}
-    </tbody></table><p class="note">"Cobertura / meta" em dias. Maioria são itens de baixo giro (faltam poucas unidades) — por isso o R$ a comprar é pequeno; a urgência é de <b>presença na prateleira</b>, não de volume.</p></div>`;
+    </tbody></table><p class="note">Maioria são itens de baixo giro (faltam poucas unidades) — por isso o R$ a comprar é pequeno; a urgência é de <b>presença na prateleira</b>.</p></div>`;
 
-  /* Transferências */
   const b_transf=`<div class="an-sec"><div class="sec-t">Transferências entre lojas <span class="vtag medio">${fmtN(transf.length)} SKUs · ${br(transfVal)} evitável</span></div>
     <p class="an-lead">Mesmo produto com <b>sobra numa loja e falta em outra</b> — remanejar evita comprar o que já existe na rede.</p>
     <table class="sku-tbl"><thead><tr><th>Item</th><th>De (sobra)</th><th>Para (falta)</th><th class="num">Un · R$</th></tr></thead><tbody>
     ${transf.slice(0,10).map(t=>`<tr><td><div class="pnome">${esc(t.nome)}</div></td><td>${t.from.slice(0,2).map(p=>esc(lojaCurta(LN(p)))).join(', ')}</td><td>${t.to.slice(0,2).map(p=>esc(lojaCurta(LN(p)))).join(', ')}</td><td class="num">${Math.floor(t.un)}${t.val!=null?` · ${br(t.val)}`:''}</td></tr>`).join('')}
     </tbody></table></div>`;
 
-  /* Saúde por classe ABC (cobertura mediana) */
   const med=a=>{const s=[...a].sort((x,y)=>x-y),n=s.length;return n?(n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2):0;};
-  const classes=['A','B','C','E'].filter(c=>classCob[c]);
-  const allCob=c=>Object.values(classCob[c]||{}).flat();
-  const cmax=Math.max(1,...classes.map(c=>med(allCob(c))));
+  const classes=['A','B','C','E'].filter(c=>classCob[c]); const allCob=c=>Object.values(classCob[c]||{}).flat();
+  const clsRows=classes.map(c=>({label:'Classe '+c,value:med(allCob(c)),vlabel:fmtN(med(allCob(c)),0)+' dias',sub:fmtN(allCob(c).length)+' itens',color:c==='A'?'#34C77B':c==='E'?'#E16358':'#D9B25F'}));
   const b_classe=`<div class="an-sec"><div class="sec-t">Saúde do mix por classe (ABC)</div>
-    <p class="an-lead">Cobertura mediana por classe de importância. Os itens <b>A</b> (mais relevantes) precisam estar bem abastecidos sem exagero; <b>E</b> é cauda longa (onde mora o encalhe).</p>
-    <div class="hbars">${classes.map(c=>{const m=med(allCob(c)),n=allCob(c).length; const col=c==='A'?'linear-gradient(90deg,#34C77B,#8fe0b4)':c==='E'?'linear-gradient(90deg,#E16358,#e89a93)':'linear-gradient(90deg,#D9B25F,#E8CD8F)';
-      return `<div class="hbar"><div class="hl">Classe ${c} <small>· ${fmtN(n)} itens</small></div><div class="ht"><div class="hf" style="width:${Math.min(100,m/cmax*100).toFixed(0)}%;background:${col}"></div></div><div class="hv">${fmtN(m,0)} dias</div></div>`;}).join('')}</div>
-    <p class="note">Alvo típico ~30–60 dias. Mediana muito alta = excesso; itens A bem cobertos = mix saudável no que importa.</p></div>`;
+    <p class="an-lead">Cobertura mediana por classe de importância. Itens <b>A</b> (mais relevantes) bem abastecidos sem exagero; <b>E</b> = cauda longa (onde mora o encalhe). Alvo típico ~30–60 dias.</p>
+    ${lollipopSVG(clsRows)}</div>`;
 
-  v.innerHTML = kpis + lead + b_cross + b_parado + b_comprar + b_transf + b_classe;
+  v.innerHTML = kpis + lead + b_cross + b_parado + b_onde + b_conf + b_comprar + b_transf + b_classe;
 }
 
 /* ---------- Render: Benchmark e achados ---------- */

@@ -462,3 +462,16 @@ O usuário gostou do gráfico de linhas mas apontou que faltou mexer em "Alavanc
 **Validação:** `node --check` OK; `parseEstoque`==seed; jsdom — **5 abas**, Estoque com scatter+lollipop+2 tabelas+4 barras de classe, KPIs corretos (R$1,30M/R$1,00M), rename/XSS escapado, **zero erros de console**.
 
 > **Estado da app (25/06/2026):** 5 abas — Diagnóstico, Tendência, Lojas, **Estoque**, Benchmark. 3 fontes: ABC (PDF), Resumo de Performance (xlsx), Consulta de Estoque (xlsx).
+
+## 34. Aprofundamento estoque×vendas — A+B+E+F (25/06/2026)
+
+Após a aba Estoque v1, o usuário pediu "aprofunde mais e veja o que mais dá pra fazer". Rodei cruzamentos reais (`scratchpad/deep-estoque.js`) e construí 4 incrementos. **Refator:** extraí `analisarEstoque(lojas)` (toda a computação: perStore, parado, comprar, transferências, +A/+B; `renderEstoque` e `renderCanal` consomem).
+- **E — exclui "Suporte à Venda"** (material, não produto, per contexto): `isSup=c=>norm(c).includes('suporte')`. Parado caiu R$1,00M→**R$967k**, capital R$1,30M→R$1,26M.
+- **A — "Onde o dinheiro parado mora"** (bloco): parado por **categoria** (Perfumaria R$476k = metade; é a âncora, comprou-se p/ o tráfego que caiu) e por **marca** (`marcaDe`: Cuide-se Bem R$96k, Nativa SPA R$80k, Malbec R$74k…). 2 lollipops. O mapa de onde frear a compra.
+- **B — "Confiança da cobertura"** (bloco): DDV previsto × **giro real do ABC** (qtd/dias do período). Barra under/ok/over (**1.074 subestima**, 759 super, 1.168 ok) + tabela **ruptura escondida** = itens com `trueCob=est/real < alvo` mas `sysCob=est/ddv` parece ok (ex.: Malbec 23d real vs 77d sistema, giro 3,4×). **Cuidado:** o filtro certo é trueCob<alvo (não cob>alvo*0.7 — isso pegava itens com 285d de excesso, errado).
+- **F — "Dinheiro na mesa"** (banda no Diagnóstico, entre a leitura e o gargalo): une os 2 levers — **caixa preso no estoque R$967k** (`analisarEstoque().T.parado`) + **vendas a recuperar R$1,74M/ano** (gapAno = receita_perf_anualizada × −recYoY/(1+recYoY)). Liberar caixa ≠ recuperar tráfego.
+- **Bug corrigido:** a barra de classe ABC usava `.hbar` (CSS removido no §24) → troquei por `lollipopSVG`. 0 refs `hbar` agora.
+
+**Síntese-chave:** o R$967k parado é, em boa parte, a **pegada financeira da queda de −25% de tráfego** (compraram p/ volume que não veio). Estoque e vendas são o mesmo evento por 2 ângulos. Outros achados (não construídos): ruptura real ~R$60k/ano (modesta, sem classe A), GMROI Coruripe 5,3 melhor/Palm.Sust 1,6 pior, comprando-excesso R$10k chegando em posição cheia.
+
+**Validação:** `node --check` OK; jsdom — 5 abas, Estoque 7 blocos (scatter+4 lollipops+3 tabelas), F no Diagnóstico, B com cobertura real vs sistema, rename/XSS escapado, 0 refs órfãs, **zero erros de console**.
