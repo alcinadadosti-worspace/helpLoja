@@ -447,3 +447,18 @@ O usuário gostou do gráfico de linhas mas apontou que faltou mexer em "Alavanc
 - **Limpeza:** removidos `perfMatrizHTML`, `heatCell`, `heat()` e CSS `.hm`/`.heat` (sem mais uso).
 
 **Validação:** `node --check` OK; jsdom — 4 abas, **2 parallel coords** na Benchmark (perfil + alavancas) + 28 achados em galeria, `#fStrat` ok, rename/XSS escapado, **0 refs órfãs**, **zero erros de console**.
+
+## 33. Aba Estoque — cobertura × vendas (25/06/2026)
+
+3ª fonte de dados: **`CONSULTA_DE_ESTOQUE_*.xlsx`** (3 abas = marcas **BOT/QDB/EUD**; 40.710 linhas SKU×loja; colunas de cobertura projetada/alvo, DDV, estoque/trânsito/pedido/segurança). Detalhe da fonte em [[radar-lojas-estoque]] (memória).
+- **Decisão do usuário:** remover as 2 lojas extras do estoque (**13706/13707** — não têm vendas/PEF); manter as 6 conhecidas. As 24xxx batem direto (Coruripe = 24670, sem 5905).
+- **Valorização em R$ (o pedido-chave):** a planilha **não tem custo/preço**, mas o SKU (5 díg) **bate com o ABC** (`String(+codigo14díg)`), então `custoPorSKU(lojas)` agrega custo/qtd por SKU do ABC e valoriza o estoque a **custo**. ~75% dos SKUs estocados têm custo (o resto nunca vendeu = encalhe sem referência).
+- **Achado-manchete:** **R$1,30M em estoque · R$1,00M parado (77% do capital)** · encalhe R$881k · **a comprar só R$10k** → o problema é **excesso, não falta**. Exceção: São Sebastião (mais vende, mais enxuta, mais itens a repor = risco de ruptura).
+
+**Arquitetura (camada paralela):** `ESTOQUE_SEED` (const após PERF_SEED; ~465KB; `{meta, skus:{sku:[nome,cat,classe,marca]}, rows:[[sku,pdv,est,tran,ped,seg,ddv,alvo,cobProj]]}` — só rows com est>0 ou cobertura, 6 lojas). `isEstoqueWB`/`parseEstoque` (detecta colunas SKU+COBERTURA PROJETADA+PDV; re-upload **reproduz o seed célula a célula**). `state.estoque`; init carrega o seed; `handleFiles` roteia (estoque → perf → indicadores antigos).
+
+**Aba Estoque** (`renderEstoque`, entre Lojas e Benchmark) → **5 abas**. Definições: parado = unidades além de alvo×DDV (+ tudo de itens sem giro), a custo (não dupla-conta); encalhe = cob>180d ou sem DDV; comprar = cob<alvo (urgente <½). Blocos: KPIs (capital/parado/encalhe/comprar/transferir) · **cruzamento vendas×parado** (scatter, bolha=capital) · dinheiro parado por loja (lollipop) · o que comprar (tabela, urgente+classe) · transferências (sobra→falta, R$ evitável) · saúde por classe ABC (hbars). Transferências reais ≥1 un são poucas (38, R$2,4k) — déficits são sub-unitários (baixo giro); o lever real é **parar de comprar / liquidar encalhe**, não remanejar.
+
+**Validação:** `node --check` OK; `parseEstoque`==seed; jsdom — **5 abas**, Estoque com scatter+lollipop+2 tabelas+4 barras de classe, KPIs corretos (R$1,30M/R$1,00M), rename/XSS escapado, **zero erros de console**.
+
+> **Estado da app (25/06/2026):** 5 abas — Diagnóstico, Tendência, Lojas, **Estoque**, Benchmark. 3 fontes: ABC (PDF), Resumo de Performance (xlsx), Consulta de Estoque (xlsx).
