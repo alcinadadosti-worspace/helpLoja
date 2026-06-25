@@ -269,12 +269,6 @@ table.rank{border-collapse:collapse;width:100%;min-width:980px;font-size:12.5px}
 .tag.warn{background:#E8B84B22;color:var(--ambar)}
 .tag.bad{background:#E1635822;color:var(--verm)}
 /* ---- Tendência (ponte YoY, funil, alavancas de fluxo) ---- */
-.ebar{display:grid;grid-template-columns:130px 1fr 122px;align-items:center;gap:10px;margin:6px 0}
-.ebar .el{font-size:12.5px;color:var(--tx2)}
-.ebar .et{position:relative;height:18px;background:#ffffff07;border-radius:4px}
-.ebar .ez{position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:#ffffff2e}
-.ebar .ef{position:absolute;top:3px;bottom:3px;border-radius:3px;min-width:1px}
-.ebar .ev{font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
 .funnel{display:flex;flex-direction:column;gap:8px;max-width:600px;margin:6px 0 4px}
 .funnel .fstage{display:grid;grid-template-columns:180px 1fr 68px;align-items:center;gap:12px}
 .funnel .ftk{position:relative;height:26px;background:#ffffff07;border-radius:5px;overflow:hidden}
@@ -1260,14 +1254,79 @@ function renderCanal(lojas, canal, findings){
     ${gargaloBubbleHTML(lojas, findings)}`;
 }
 
+/* ---- Visuais da Tendência (SVG puro): cascata · tornado · slopegraph · lollipop ---- */
+const kBRL = v => v==null?'—':(Math.abs(v)>=1e6?('R$'+(v/1e6).toFixed(2).replace('.',',')+'M'):Math.abs(v)>=1000?('R$'+Math.round(v/1000)+'k'):'R$'+Math.round(v));
+const heat3 = (v,lo,hi)=>{ const t=hi>lo?clamp((v-lo)/(hi-lo),0,1):0.5; return t>0.66?'#34C77B':t>0.33?'#E8B84B':'#E16358'; };
+/* cascata: steps=[{label,value,total:true}|{label,delta}] */
+function waterfallSVG(steps){
+  const W=720,H=290,mL=14,mR=14,mT=30,mB=40;
+  let run=0; const bars=steps.map(s=>{ if(s.total){ run=s.value; return {label:s.label,lo:0,hi:s.value,val:s.value,kind:'total'}; }
+    const lo=Math.min(run,run+s.delta),hi=Math.max(run,run+s.delta),b={label:s.label,lo,hi,val:s.delta,kind:s.delta>=0?'up':'down'}; run+=s.delta; return b; });
+  const maxV=Math.max(...bars.map(b=>b.hi),1)*1.10, n=bars.length, plotH=H-mT-mB, step=(W-mL-mR)/n, bw=Math.min(80,step*0.56);
+  const Y=v=>mT+plotH-(v/maxV)*plotH, cx=i=>mL+step*i+step/2;
+  const col={total:'#D9B25F',up:'#34C77B',down:'#E16358'}, lc={total:'var(--ouro2)',up:'#8fe0b4',down:'#e89a93'};
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:720px" role="img" aria-label="Cascata da variação de receita">`;
+  svg+=`<line x1="${mL}" y1="${Y(0).toFixed(1)}" x2="${W-mR}" y2="${Y(0).toFixed(1)}" stroke="var(--line)"/>`;
+  let rc=0; bars.forEach((b,i)=>{ rc=b.kind==='total'?b.val:rc+b.val; if(i<n-1){ const y=Y(rc).toFixed(1); svg+=`<line x1="${(cx(i)+bw/2).toFixed(1)}" y1="${y}" x2="${(cx(i+1)-bw/2).toFixed(1)}" y2="${y}" stroke="rgba(255,255,255,0.20)" stroke-dasharray="3 3"/>`; } });
+  bars.forEach((b,i)=>{ const x=(cx(i)-bw/2).toFixed(1), yhi=Y(b.hi), h=Math.max(2,Y(b.lo)-Y(b.hi));
+    svg+=`<rect x="${x}" y="${yhi.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2.5" fill="${col[b.kind]}" fill-opacity="${b.kind==='total'?0.92:0.8}"/>`;
+    svg+=`<text x="${cx(i).toFixed(1)}" y="${(yhi-6).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="${lc[b.kind]}">${b.kind==='total'?kBRL(b.val):(b.val>=0?'+':'−')+kBRL(Math.abs(b.val))}</text>`;
+    svg+=`<text x="${cx(i).toFixed(1)}" y="${(H-mB+16).toFixed(1)}" text-anchor="middle" font-size="10" fill="var(--tx2)">${esc(b.label)}</text>`;
+  });
+  return svg+`</svg>`;
+}
+/* tornado: rows=[{label, neg(<0), pos(>0), net}] */
+function tornadoSVG(rows){
+  const rowH=26,mL=104,mR=104,mT=18,W=720,H=mT+rows.length*rowH+10, cxc=mL+(W-mL-mR)/2;
+  const maxAbs=Math.max(...rows.flatMap(r=>[Math.abs(r.neg||0),Math.abs(r.pos||0)]),1), half=(W-mL-mR)/2-6, X=v=>cxc+(v/maxAbs)*half;
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:720px" role="img" aria-label="Decomposição por loja">`;
+  svg+=`<text x="${(cxc-half).toFixed(0)}" y="${mT-6}" font-size="9.5" fill="var(--tx3)">◀ tráfego</text><text x="${(cxc+half).toFixed(0)}" y="${mT-6}" text-anchor="end" font-size="9.5" fill="var(--tx3)">preço ▶</text>`;
+  svg+=`<line x1="${cxc}" y1="${mT}" x2="${cxc}" y2="${H-8}" stroke="var(--line)"/>`;
+  rows.forEach((r,i)=>{ const y=mT+i*rowH+rowH/2, xn=X(r.neg||0), xp=X(r.pos||0);
+    svg+=`<text x="${mL-8}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="10.5" fill="var(--tx2)">${esc(r.label)}</text>`;
+    if((r.neg||0)<0) svg+=`<rect x="${xn.toFixed(1)}" y="${(y-7).toFixed(1)}" width="${(cxc-xn).toFixed(1)}" height="14" rx="2" fill="#E16358" fill-opacity="0.6"/>`;
+    if((r.pos||0)>0) svg+=`<rect x="${cxc.toFixed(1)}" y="${(y-7).toFixed(1)}" width="${(xp-cxc).toFixed(1)}" height="14" rx="2" fill="#34C77B" fill-opacity="0.6"/>`;
+    svg+=`<text x="${W-mR+8}" y="${(y+3).toFixed(1)}" font-size="10.5" font-weight="700" fill="${(r.net||0)>=0?'#8fe0b4':'#e89a93'}">${((r.net||0)>=0?'+':'−')+kBRL(Math.abs(r.net||0))}</text>`;
+  });
+  return svg+`</svg>`;
+}
+/* slopegraph: rows=[{label,left,right,color}] */
+function slopeSVG(rows,leftLb,rightLb){
+  const W=720,H=288,mL=58,mR=160,mT=34,mB=14;
+  const vals=rows.flatMap(r=>[r.left,r.right]); let vMax=Math.max(...vals),vMin=Math.min(...vals); const pad=(vMax-vMin)*0.14||1; vMax+=pad; vMin-=pad;
+  const xL=mL+6,xR=W-mR, Y=v=>mT+(H-mT-mB)-((v-vMin)/(vMax-vMin))*(H-mT-mB);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:720px" role="img" aria-label="${esc(leftLb)} para ${esc(rightLb)} por loja">`;
+  svg+=`<text x="${xL}" y="${mT-14}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--tx2)">${esc(leftLb)}</text><text x="${xR}" y="${mT-14}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--tx2)">${esc(rightLb)}</text>`;
+  svg+=`<line x1="${xL}" y1="${mT}" x2="${xL}" y2="${H-mB}" stroke="var(--line)"/><line x1="${xR}" y1="${mT}" x2="${xR}" y2="${H-mB}" stroke="var(--line)"/>`;
+  const ord=rows.map((r,i)=>({i,y:Y(r.right)})).sort((a,b)=>a.y-b.y); let prev=-1e9; ord.forEach(o=>{ o.ly=Math.max(o.y,prev+15); prev=o.ly; }); const ly={}; ord.forEach(o=>ly[o.i]=o.ly);
+  rows.forEach((r,i)=>{ const c=r.color,yl=Y(r.left),yr=Y(r.right);
+    svg+=`<line x1="${xL}" y1="${yl.toFixed(1)}" x2="${xR}" y2="${yr.toFixed(1)}" stroke="${c}" stroke-width="2" stroke-opacity="0.8"/>`;
+    svg+=`<circle cx="${xL}" cy="${yl.toFixed(1)}" r="3.6" fill="${c}"/><circle cx="${xR}" cy="${yr.toFixed(1)}" r="4.2" fill="${c}"/>`;
+    svg+=`<text x="${xL-8}" y="${(yl+3).toFixed(1)}" text-anchor="end" font-size="9.5" fill="var(--tx3)">${fmtN(r.left,0)}%</text>`;
+    svg+=`<text x="${xR+9}" y="${(ly[i]+3).toFixed(1)}" font-size="10.5"><tspan fill="${c}" font-weight="700">${fmtN(r.right,0)}%</tspan> <tspan fill="var(--tx2)">${esc(r.label)}</tspan></text>`;
+  });
+  return svg+`</svg>`;
+}
+/* lollipop horizontal: rows=[{label,value,sub,color}] (já ordenado) */
+function lollipopSVG(rows){
+  const rowH=27,mL=118,mR=96,mT=8,W=720,H=mT+rows.length*rowH+6;
+  const vMax=Math.max(...rows.map(r=>r.value),1),x0=mL,x1=W-mR,X=v=>x0+(v/vMax)*(x1-x0);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:720px" role="img" aria-label="Ranking por loja">`;
+  rows.forEach((r,i)=>{ const y=mT+i*rowH+rowH/2, xv=X(r.value), c=r.color;
+    svg+=`<text x="${mL-10}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--tx2)">${esc(r.label)}</text>`;
+    svg+=`<line x1="${x0}" y1="${y.toFixed(1)}" x2="${xv.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${c}" stroke-width="2.5" stroke-opacity="0.45"/>`;
+    svg+=`<circle cx="${xv.toFixed(1)}" cy="${y.toFixed(1)}" r="5.5" fill="${c}"/>`;
+    svg+=`<text x="${(xv+9).toFixed(1)}" y="${(y+3.5).toFixed(1)}" font-size="11" font-weight="700" fill="var(--tx)">${r.vlabel!=null?esc(r.vlabel):fmtN(r.value,0)}${r.sub?` <tspan fill="var(--tx3)" font-weight="400">${esc(r.sub)}</tspan>`:''}</text>`;
+  });
+  return svg+`</svg>`;
+}
+
 /* ---------- Render: Tendência (ponte YoY · funil de fidelização · alavancas de fluxo) ---------- */
 function renderTendencia(lojas, canal){
   const v=$('#view-tendencia');
   const perf=state.perf, cp=perf&&perf.cp, pm=perf&&perf.meta;
   if(!cp){ v.innerHTML=`<div class="empty"><b>A aba Tendência precisa do "Resumo de Performance".</b><br><span class="meta">Arraste a planilha de Indicadores de Loja — ela traz meta PEF e comparação com o mesmo período do ano anterior.</span></div>`; return; }
   const sgn  = f => f==null?'—':(f>0?'+':'')+fmtPct(f*100,1);          // f fração → %
-  const sgnPP= f => f==null?'—':(f>0?'+':'')+fmtN(f*100,1)+'pp';       // f fração → pontos percentuais
-  const sgnR = x => (x>=0?'+':'')+fmtBRL(x);
   const col  = good => good?'var(--verde)':'var(--verm)';
   // Receita = boletos × itens/boleto × preço médio; decomposição sequencial exata da variação YoY (R$ do período)
   const bridge=(bol,it,pr,bY,iY,pY)=>{ if([bol,it,pr,bY,iY,pY].some(x=>x==null) || [bY,iY,pY].some(x=>x<=-1)) return null; // x<=-1 evitaria divisão por zero (YoY de -100%)
@@ -1277,24 +1336,15 @@ function renderTendencia(lojas, canal){
 
   /* ---- 1 · Ponte da queda (tráfego × cesta × preço) ---- */
   const cb = bridge(cp.boletos.real, cp.itensBoleto.real, cp.precoMedio.real, cp.boletos.vsAnt/100, cp.itensBoleto.vsAnt/100, cp.precoMedio.vsAnt/100);
-  const recYoY = cp.receita.vsAnt/100;
-  const mx = cb ? (Math.max(Math.abs(cb.vol),Math.abs(cb.cesta),Math.abs(cb.preco))||1) : 1;
-  const ebar=(lb,val)=>{ const w=Math.min(50,Math.abs(val)/mx*50).toFixed(1);
-    const side=val>=0?`left:50%;width:${w}%;background:var(--verde)`:`right:50%;width:${w}%;background:var(--verm)`;
-    return `<div class="ebar"><div class="el">${lb}</div><div class="et"><div class="ez"></div><div class="ef" style="${side}"></div></div><div class="ev" style="color:${col(val>=0)}">${sgnR(val)}</div></div>`; };
   const comBase = lojas.filter(l=>l.perf && l.perf.receita.vsAnt!=null);
   const semBase = lojas.filter(l=>l.perf && l.perf.receita.vsAnt==null);
   const lojaBr = comBase.map(l=>({l, b:bridge(l.perf.boletos.v,l.perf.itensBoleto.v,l.perf.precoMedio.v,l.perf.boletos.vsAnt,l.perf.itensBoleto.vsAnt,l.perf.precoMedio.vsAnt)})).filter(x=>x.b).sort((a,b)=>a.b.dR-b.b.dR);
-  const cR = x=>`<td class="num" style="color:${col(x>=0)}">${sgnR(x)}</td>`;
   const b1=`<div class="an-sec"><div class="sec-t">1 · Ponte da queda — tráfego × cesta × preço <span class="vtag ruim">vs ano passado</span></div>
     <p class="an-lead">A receita é <b>boletos × itens por boleto × preço médio</b>. Decompondo a queda do canal vs o ano passado, dá pra ver <b>de onde ela vem</b>: ${cb?`o canal perdeu <b style="color:var(--verm)">${sgn(cp.boletos.vsAnt/100)}</b> de tráfego, manteve a cesta (${sgn(cp.itensBoleto.vsAnt/100)}) e <b>segurou o faturamento subindo preço</b> (${sgn(cp.precoMedio.vsAnt/100)}). Não é mix nem desconto — <b>é gente entrando menos na loja</b>.`:''}</p>
-    ${cb?`<div class="mini-t">Canal · variação de receita no período (R$)</div>
-    ${ebar('Tráfego (boletos)',cb.vol)}${ebar('Cesta (itens/bol)',cb.cesta)}${ebar('Preço médio',cb.preco)}
-    <div class="ebar" style="border-top:1px solid var(--line);margin-top:8px;padding-top:9px"><div class="el"><b>= Receita</b></div><div class="et" style="background:none"></div><div class="ev" style="color:${col(cb.dR>=0)};font-size:14px">${sgnR(cb.dR)} <span class="meta" style="font-weight:600">(${sgn(recYoY)})</span></div></div>`:''}
-    <div class="mini-t" style="margin-top:16px">Por loja · ${lojaBr.length} com base comparável (da que mais caiu para a que menos caiu)</div>
-    <table class="sku-tbl"><thead><tr><th>Loja</th><th class="num">Tráfego</th><th class="num">Cesta</th><th class="num">Preço</th><th class="num">= Δ Receita</th><th class="num">YoY</th></tr></thead><tbody>
-    ${lojaBr.map(({l,b})=>`<tr><td><div class="pnome">${esc(nomeLoja(l))}</div></td>${cR(b.vol)}${cR(b.cesta)}${cR(b.preco)}<td class="num"><b>${sgnR(b.dR)}</b></td><td class="num" style="color:${col(l.perf.receita.vsAnt>=0)}">${sgn(l.perf.receita.vsAnt)}</td></tr>`).join('')}
-    </tbody></table>
+    ${cb?`<div class="mini-t">Canal · cascata da variação de receita (no período)</div>
+    ${waterfallSVG([{label:'Ano passado',value:cb.ant,total:true},{label:'Tráfego',delta:cb.vol},{label:'Cesta',delta:cb.cesta},{label:'Preço',delta:cb.preco},{label:'Atual',value:cb.atual,total:true}])}`:''}
+    <div class="mini-t" style="margin-top:14px">Por loja · ${lojaBr.length} com base comparável · <span style="color:#e89a93">◀ tráfego perdido</span> · <span style="color:#8fe0b4">preço ganho ▶</span> · Δ receita à direita</div>
+    ${tornadoSVG(lojaBr.map(({l,b})=>({label:lojaCurta(nomeLoja(l)), neg:b.vol, pos:b.preco, net:b.dR})))}
     ${semBase.length?`<p class="note">${semBase.map(l=>esc(nomeLoja(l))).join(' e ')} sem base do ano anterior no sistema — fora da ponte.</p>`:''}
     <p class="note">Decomposição sequencial exata (tráfego + cesta + preço = Δ receita). Valores no período (~${fmtN(canal.meses||5.6,1)} meses); para o ano, ×~${fmtN(12/(canal.meses||5.6),1)}.</p>
   </div>`;
@@ -1306,29 +1356,25 @@ function renderTendencia(lojas, canal){
     return `<div class="fstage"><div class="fl">${lb}</div><div class="ftk"><div class="fbar" style="width:${w}%;background:${c}"></div></div><div class="fv">${fmtPct(val,1)}</div></div>`; };
   const resgYoY = cp.resgateFid.vsAnt;  // pp (CP), número 0-100
   const idColR = lojas.filter(l=>l.perf).map(l=>l.perf.resgateFid.v);
-  const funilRows = lojas.filter(l=>l.perf).map(l=>{ const p=l.perf;
-    return `<tr><td><div class="pnome">${esc(nomeLoja(l))}</div></td>
-      <td class="num">${fmtPct(p.idCliente.v,0)}</td><td class="num">${fmtPct(p.penFid.v,0)}</td>
-      <td class="num">${heatCell(fmtPct(p.resgateFid.v,0), p.resgateFid.v, idColR, true)}</td></tr>`; }).join('');
   const b2=`<div class="an-sec"><div class="sec-t">2 · Funil de fidelização <span class="vtag medio">identifica → cadastra → resgata</span></div>
     <p class="an-lead">O cliente fidelizado é o que <b>volta</b> — e voltar é exatamente o que falta (a queda é de fluxo). O funil mostra onde vaza: o canal <b>identifica ${fmtPct(cp.idCliente.real,0)}</b> dos boletos e <b>cadastra ${fmtPct(cp.penFid.real,0)}</b>, mas <b style="color:var(--ouro2)">só ${fmtPct(cp.resgateFid.real,0)} resgatam</b> pontos. O vazamento está no <b>resgate</b> — meio programa parado é meia visita de volta na mesa.</p>
     <div class="funnel">${fstages.map(frow).join('')}</div>
     <p class="note">Resgate vs ano passado: <b style="color:${col(resgYoY>=0)}">${(resgYoY>0?'+':'')+fmtN(resgYoY,1)}pp</b> (melhorando). "Identifica" é base RBV e passa de 100%.</p>
-    <div class="mini-t" style="margin-top:14px">Por loja · resgate é a alavanca (verde = melhor)</div>
-    <table class="sku-tbl"><thead><tr><th>Loja</th><th class="num">Identifica</th><th class="num">Cadastra</th><th class="num">Resgata</th></tr></thead><tbody>${funilRows}</tbody></table>
-    <p class="note">Quem identifica e cadastra bem mas resgata pouco tem fila de clientes a um empurrão de voltar à loja — campanha de resgate é tática de fluxo de baixo custo.</p>
+    <div class="mini-t" style="margin-top:14px">Por loja · cadastra → resgata (linha mais íngreme = mais vaza)</div>
+    ${slopeSVG(lojas.filter(l=>l.perf).map(l=>({label:lojaCurta(nomeLoja(l)), left:l.perf.penFid.v, right:l.perf.resgateFid.v, color:heat3(l.perf.resgateFid.v, Math.min(...idColR), Math.max(...idColR))})), 'Cadastra', 'Resgata')}
+    <p class="note">Cada linha é uma loja, do <b>cadastro</b> (esq.) ao <b>resgate</b> (dir.); quanto mais íngreme a queda, mais cliente fica pelo caminho. Cor = nível de resgate (verde melhor). Campanha de resgate é tática de fluxo de baixo custo.</p>
   </div>`;
 
   /* ---- 3 · Alavancas de fluxo ---- */
-  const fluxRows = lojas.filter(l=>l.perf).sort((a,b)=>(b.perf.servicos.v||0)-(a.perf.servicos.v||0)).map(l=>{ const p=l.perf;
-    return `<tr><td><div class="pnome">${esc(nomeLoja(l))}</div></td>
-      <td class="num">${fmtPct(p.convFluxo.v,1)} <span class="meta">${sgnPP(p.convFluxo.vsAnt)}</span></td>
-      <td class="num">${fmtN(p.servicos.v,0)} <span class="meta">${sgn(p.servicos.vsAnt)}</span></td>
-      <td class="num" style="color:${col((l.perf.boletos.vsAnt||0)>=0)}">${sgn(l.perf.boletos.vsAnt)}</td></tr>`; }).join('');
   const b3=`<div class="an-sec"><div class="sec-t">3 · Alavancas de fluxo <span class="vtag ruim">o botão da recuperação</span></div>
     <p class="an-lead">Se a queda é de tráfego, os dois indicadores que medem tráfego direto importam mais que tudo: <b>Conversão de Ação de Fluxo</b> (quanto as ações de atrair gente convertem) e <b>Serviços em Loja</b> (motivo de ida à loja). No canal a conversão de fluxo caiu <b style="color:var(--verm)">${(cp.convFluxo.vsAnt>0?'+':'')+fmtN(cp.convFluxo.vsAnt,1)}pp</b> vs o ano passado — na mesma direção dos boletos.</p>
-    <table class="sku-tbl"><thead><tr><th>Loja</th><th class="num">Conversão ação de fluxo</th><th class="num">Serviços em loja</th><th class="num">Boletos YoY</th></tr></thead><tbody>${fluxRows}</tbody></table>
-    <p class="note">Conversão e serviços com a variação ao lado; "Boletos YoY" na última coluna pra ver a associação loja a loja. Serviços é contagem absoluta — pondere pelo porte da loja. Correlação sugestiva (n=6, sem série mensal) — sinaliza onde apertar, não prova causa.</p>
+    <div class="mini-t">Serviços em loja (gancho de tráfego) <span class="meta" style="font-weight:400">· variação vs ano anterior ao lado</span></div>
+    ${(()=>{ const sv=lojas.filter(l=>l.perf).slice().sort((a,b)=>(b.perf.servicos.v||0)-(a.perf.servicos.v||0)); const vmax=Math.max(...sv.map(l=>l.perf.servicos.v||0),1);
+      return lollipopSVG(sv.map(l=>({label:lojaCurta(nomeLoja(l)), value:l.perf.servicos.v||0, sub:l.perf.servicos.vsAnt!=null?((l.perf.servicos.vsAnt>0?'+':'')+fmtN(l.perf.servicos.vsAnt*100,0)+'%'):'', color:heat3(l.perf.servicos.v||0,0,vmax)}))); })()}
+    <div class="mini-t" style="margin-top:14px">Conversão de ação de fluxo <span class="meta" style="font-weight:400">· variação em pp ao lado</span></div>
+    ${(()=>{ const cv=lojas.filter(l=>l.perf&&l.perf.convFluxo.v!=null).slice().sort((a,b)=>(b.perf.convFluxo.v)-(a.perf.convFluxo.v)); const vs=cv.map(l=>l.perf.convFluxo.v),cmin=Math.min(...vs),cmax=Math.max(...vs);
+      return lollipopSVG(cv.map(l=>({label:lojaCurta(nomeLoja(l)), value:l.perf.convFluxo.v, vlabel:fmtN(l.perf.convFluxo.v,1)+'%', sub:l.perf.convFluxo.vsAnt!=null?((l.perf.convFluxo.vsAnt>0?'+':'')+fmtN(l.perf.convFluxo.vsAnt*100,1)+'pp'):'', color:heat3(l.perf.convFluxo.v,cmin,cmax)}))); })()}
+    <p class="note">Serviços = contagem absoluta (pondere pelo porte da loja). A conversão de fluxo caiu na rede e anda junto dos boletos — sinaliza onde apertar, não prova causa (n=6, sem série mensal).</p>
   </div>`;
 
   v.innerHTML = b1 + b2 + b3;

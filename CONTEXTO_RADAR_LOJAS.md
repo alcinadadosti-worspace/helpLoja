@@ -408,3 +408,13 @@ O usuário pediu o bloco "Gargalo nº 1 de cada loja" mais visual ("para um trab
 - **Limpeza:** `gargalo` e `byGmv` do `renderCanal` ficaram órfãos (a bolha tem `garg` próprio) → removidos.
 
 **Validação:** `node --check` OK; jsdom — 4 abas, 6 bolhas (2 tracejadas/teto), rótulos sem colisão, rename/XSS escapado, `#fStrat` ok, **0 refs órfãs**, **zero erros de console**.
+
+## 29. Tendência toda visual — cascata · tornado · slopegraph · lollipop (24/06/2026)
+
+O usuário pediu a aba Tendência mais visual e **explicitamente não-bubble** ("não poderia ser outro estilo além de bubble?"). Trocadas as 3 tabelas por loja por **idiomas distintos** (SVG puro, helpers novos `waterfallSVG`/`tornadoSVG`/`slopeSVG`/`lollipopSVG` + `kBRL`/`heat3`):
+- **Bloco 1 (ponte):** canal vira **cascata/waterfall** (Ano passado → −tráfego → −cesta → +preço → Atual, com conectores tracejados); por loja vira **tornado** (barras divergentes: tráfego perdido ◀ vermelho · preço ganho ▶ verde · Δreceita à direita).
+- **Bloco 2 (funil):** mantém o funil do canal; por loja vira **slopegraph** (Cadastra → Resgata, uma linha por loja; mais íngreme = mais vaza; cor `heat3` pelo nível de resgate).
+- **Bloco 3 (alavancas):** duas **lollipops** ranqueadas — Serviços em loja (Coruripe 613 lidera, Sustentável 0) e Conversão de Ação de Fluxo, com a variação YoY ao lado (lollipop aceita `vlabel` p/ %).
+- **Limpeza:** removidos os helpers/row-builders órfãos (`ebar`/`mx`/`cR`/`sgnR`/`sgnPP`/`recYoY`-local/`funilRows`/`fluxRows`) e o CSS `.ebar*`.
+
+Cada gráfico mantém uma leitura curta em cima. **Validação:** `node --check` OK; jsdom — 4 abas, **5 SVGs na Tendência** (cascata, tornado, slopegraph, 2 lollipops) + funil do canal, rename/XSS escapado, **0 refs órfãs**, **zero erros de console**.
